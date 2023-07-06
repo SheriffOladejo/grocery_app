@@ -111,7 +111,7 @@ class _BottomNavState extends State<BottomNav> {
         icon: ImageIcon(
           AssetImage("assets/images/profile.png"),
         ),
-        title: ("Profile"),
+        title: ("Admin"),
         activeColorPrimary: HexColor("#66906A"),
         inactiveColorPrimary: HexColor("#AAAAAA"),
       ),

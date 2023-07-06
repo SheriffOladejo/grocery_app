@@ -5,6 +5,7 @@ import 'package:grocery_app/adapters/cart_adapter.dart';
 import 'package:grocery_app/adapters/item_adapter.dart';
 import 'package:grocery_app/models/item.dart';
 import 'package:grocery_app/utils/constants.dart';
+import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/views/checkout.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
@@ -28,11 +29,19 @@ class _CartScreenState extends State<CartScreen> {
   // Set delivery price here
   double deliveryPrice = Constants.DELIVERY_PRICE;
 
+  var db_helper = DbHelper();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+          },
+          child: Icon(Icons.arrow_back, color: Colors.black,),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
         title: Text("My cart", style: TextStyle(
@@ -186,22 +195,21 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> init() async {
-    for (var i = 0; i < 12; i++) {
-      cartList.add(Item(
-        itemName: "Lettuce plant",
-        stockCount: 15,
-        category: "Vegetables",
-        image: "assets/images/lettuce.png",
-        wholesaleImage: "assets/images/lettuce.png",
-        discount: 10.0,
-        wholesalePrice: 750.0,
-        isBuyingWholesale: "true",
-        buyingCount: 3,
-        wholesaleUnit: 5,
-        retailPrice: 200.0,
-        favorite: "true",
-      ));
+    cartList = await db_helper.getCart();
+
+    for (var i = 0; i < cartList.length; i++) {
+      if (cartList[i].isBuyingWholesale == 'true') {
+        double price = (cartList[i].buyingCount / cartList[i].wholesaleUnit) * cartList[i].wholesalePrice;
+        totalItemsPrice += price;
+      }
+      else {
+        double price = cartList[i].buyingCount * cartList[i].retailPrice;
+        totalItemsPrice += price;
+      }
     }
+
+    orderTotal = totalItemsPrice + deliveryPrice;
+
     setState(() {
 
     });

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:grocery_app/adapters/stock_adapter.dart';
+import 'package:grocery_app/models/item.dart';
+import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/utils/methods.dart';
 import 'package:grocery_app/views/add_item.dart';
@@ -14,8 +17,12 @@ class StockManagementScreen extends StatefulWidget {
 
 class _StockManagementScreenState extends State<StockManagementScreen> {
 
+  List<Item> stockList = [];
+  var db_helper = DbHelper();
+
   @override
   Widget build(BuildContext context) {
+    init();
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -65,7 +72,20 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
                 ],
               ),
             ),
-
+            Container(height: 15,),
+            Container(
+              height: 500,
+              child: ListView.builder(
+                itemCount: stockList.length,
+                shrinkWrap: true,
+                controller: ScrollController(),
+                itemBuilder: (context, index) {
+                  return StockAdapter(
+                    item: stockList[index],
+                  );
+                },
+              ),
+            )
           ],
         ),
       ),
@@ -77,6 +97,23 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
         },
       ),
     );
+  }
+
+  Future<void> init () async {
+    List<Item> l = await db_helper.getItems();
+    for (var i =0 ; i < 6; i++) {
+      stockList.addAll(l);
+    }
+
+    setState(() {
+
+    });
+  }
+
+  @override
+  void initState () {
+    super.initState();
+    init();
   }
 
 }

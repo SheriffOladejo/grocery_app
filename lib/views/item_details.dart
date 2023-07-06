@@ -2,14 +2,19 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/adapters/item_adapter.dart';
 import 'package:grocery_app/models/item.dart';
+import 'package:grocery_app/utils/constants.dart';
+import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
+import 'package:grocery_app/utils/methods.dart';
+import 'package:grocery_app/views/cart_screen.dart';
 
 class ItemDetails extends StatefulWidget {
 
   Item item;
+  int selectedCount;
   bool showWholesalePrice;
 
-  ItemDetails({this.item, this.showWholesalePrice});
+  ItemDetails({this.item, this.showWholesalePrice, this.selectedCount});
 
   @override
   State<ItemDetails> createState() => _ItemDetailsState();
@@ -20,14 +25,14 @@ class _ItemDetailsState extends State<ItemDetails> {
 
   int cartCount;
 
-  int selectedCount = 0;
-
   List<Item> relatedProducts = [];
 
   String stock = "";
   bool inStock = false;
 
   bool isLoading = false;
+
+  var db_helper = DbHelper();
 
   @override
   Widget build(BuildContext context) {
@@ -44,34 +49,39 @@ class _ItemDetailsState extends State<ItemDetails> {
           child: Icon(Icons.arrow_back, color: Colors.black,),
         ),
         actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Image.asset("assets/images/cart.png",),
-              cartCount == 0 ? Container(width: 0, height: 0,) : Container(
-                width: 30,
-                height: 30,
-                alignment: Alignment.topRight,
-                child: Container(
-                  alignment: Alignment.center,
-                  width: 15,
-                  height: 15,
-                  decoration: BoxDecoration(
-                    color: HexColor("#66906A"),
-                    borderRadius: BorderRadius.all(Radius.circular(10)),
-                  ),
-                  child: Text(
-                    "2",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontFamily: 'inter-medium',
-                      fontWeight: FontWeight.w500,
+          InkWell(
+            onTap: () {
+              Navigator.push(context, slideLeft(const CartScreen()));
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.asset("assets/images/cart.png",),
+                cartCount == 0 ? Container(width: 0, height: 0,) : Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.topRight,
+                  child: Container(
+                    alignment: Alignment.center,
+                    width: 15,
+                    height: 15,
+                    decoration: BoxDecoration(
+                      color: HexColor("#66906A"),
+                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                    ),
+                    child: Text(
+                      "${cartCount.toString()}",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontFamily: 'inter-medium',
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                ),
-              )
-            ],
+                )
+              ],
+            ),
           ),
           Container(width: 20,),
         ],
@@ -96,7 +106,7 @@ class _ItemDetailsState extends State<ItemDetails> {
               Container(
                 alignment: Alignment.center,
                 width: MediaQuery.of(context).size.width,
-                child: Image.asset("assets/images/lettuce.png", width: 330, height: 235,)
+                child: Image.network(widget.showWholesalePrice ? widget.item.wholesaleImage : widget.item.image, width: 330, height: 235,)
               ),
               Container(height: 10,),
               Text(widget.item.itemName, style: TextStyle(
@@ -106,7 +116,7 @@ class _ItemDetailsState extends State<ItemDetails> {
                 fontSize: 20,
               ),),
               Container(height: 5,),
-              Text("\$${widget.item.retailPrice}", style: TextStyle(
+              widget.showWholesalePrice && widget.item.retailPrice == 0 ? Container(width: 0, height: 0,) : Text("${Constants.CURRENCY}${widget.item.retailPrice}", style: TextStyle(
                 color: Colors.black,
                 fontFamily: 'inter-bold',
                 fontWeight: FontWeight.w600,
@@ -114,7 +124,7 @@ class _ItemDetailsState extends State<ItemDetails> {
                 decoration: widget.showWholesalePrice ? TextDecoration.lineThrough : TextDecoration.none,
               ),),
               Container(height: 5,),
-              widget.showWholesalePrice ? Text("\$${widget.item.wholesalePrice}", style: TextStyle(
+              widget.showWholesalePrice ? Text("${Constants.CURRENCY}${widget.item.wholesalePrice}", style: TextStyle(
                 color: Colors.black,
                 fontFamily: 'inter-bold',
                 fontWeight: FontWeight.w600,
@@ -134,12 +144,12 @@ class _ItemDetailsState extends State<ItemDetails> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (selectedCount != 0) {
+                      if (widget.selectedCount != 0) {
                         if (widget.showWholesalePrice) {
-                          selectedCount = int.parse((selectedCount - widget.item.wholesaleUnit).toString());
+                          widget.selectedCount = int.parse((widget.selectedCount - widget.item.wholesaleUnit).toString());
                         }
                         else {
-                          selectedCount--;
+                          widget.selectedCount--;
                         }
                         setState(() {
 
@@ -151,13 +161,13 @@ class _ItemDetailsState extends State<ItemDetails> {
                       width: 24,
                       height: 24,
                       decoration: BoxDecoration(
-                        color: selectedCount == 0 ? Colors.grey : Colors.green,
+                        color: widget.selectedCount == 0 ? Colors.grey : Colors.green,
                         borderRadius: BorderRadius.all(Radius.circular(6)),
                       ),
                       child: Icon(CupertinoIcons.minus, color: Colors.white, size: 20,),
                     ),
                   ),
-                  Text("$selectedCount", style: TextStyle(
+                  Text("${widget.selectedCount}", style: TextStyle(
                     color: Colors.black,
                     fontFamily: 'inter-bold',
                     fontWeight: FontWeight.w600,
@@ -165,12 +175,12 @@ class _ItemDetailsState extends State<ItemDetails> {
                   ),),
                   GestureDetector(
                     onTap: () {
-                      if (selectedCount != widget.item.stockCount) {
+                      if (widget.selectedCount != widget.item.stockCount) {
                         if (widget.showWholesalePrice) {
-                          selectedCount = int.parse((selectedCount + widget.item.wholesaleUnit).toString());
+                          widget.selectedCount = int.parse((widget.selectedCount + widget.item.wholesaleUnit).toString());
                         }
                         else {
-                          selectedCount++;
+                          widget.selectedCount++;
                         }
                         setState(() {
 
@@ -182,7 +192,7 @@ class _ItemDetailsState extends State<ItemDetails> {
                       width: 24,
                       height: 24,
                       decoration: BoxDecoration(
-                        color: selectedCount == widget.item.stockCount ? Colors.grey : Colors.green,
+                        color: widget.selectedCount == widget.item.stockCount ? Colors.grey : Colors.green,
                         borderRadius: BorderRadius.all(Radius.circular(6)),
                       ),
                       child: Icon(CupertinoIcons.plus, color: Colors.white, size: 20,),
@@ -193,11 +203,22 @@ class _ItemDetailsState extends State<ItemDetails> {
                     height: 35,
                     alignment: Alignment.center,
                     color: Colors.white,
-                    margin: const EdgeInsets.only(bottom: 20),
+                    margin: const EdgeInsets.only(bottom: 10),
                     child: MaterialButton(
                       color: HexColor("#66906A"),
-                      onPressed: () {
-                        // add to cart
+                      onPressed: () async {
+                        if (widget.selectedCount != 0) {
+                          await db_helper.saveCart(
+                            widget.item.id,
+                            widget.selectedCount,
+                            widget.showWholesalePrice.toString()
+                          );
+                          showToast("Cart saved");
+                          Navigator.pop(context);
+                        }
+                        else {
+                          showToast("Select at least one");
+                        }
                       },
                       shape: const RoundedRectangleBorder(
                           borderRadius: BorderRadius.all(Radius.circular(12))
@@ -220,7 +241,7 @@ class _ItemDetailsState extends State<ItemDetails> {
                 ],
               ),
               Container(height: 10,),
-              Text("Related products", style: TextStyle(
+              relatedProducts.length == 0 ? Container(width: 0, height: 0,) : Text("Related products", style: TextStyle(
                 color: Colors.black,
                 fontFamily: 'inter-bold',
                 fontWeight: FontWeight.w700,
@@ -248,19 +269,6 @@ class _ItemDetailsState extends State<ItemDetails> {
     setState(() {
       isLoading = true;
     });
-    for (var i = 0; i < 12; i++) {
-      relatedProducts.add(Item(
-        itemName: "Lettuce plant",
-        stockCount: 7,
-        category: "Vegetables",
-        image: "assets/images/lettuce.png",
-        discount: 10,
-        wholesalePrice: 25,
-        wholesaleUnit: 5,
-        retailPrice: 27,
-        favorite: "true",
-      ));
-    }
     if (widget.item.stockCount > 5) {
       stock = "In stock";
       inStock = true;
@@ -274,7 +282,9 @@ class _ItemDetailsState extends State<ItemDetails> {
       inStock = false;
       // delete item from db
     }
-    //relatedProducts = await getRelatedProducts(widget.item.category);
+    List<Item> cart = await db_helper.getCart();
+    cartCount = cart.length;
+    relatedProducts = await db_helper.getRelatedProducts(widget.item, widget.item.category);
     setState(() {
       isLoading = false;
     });

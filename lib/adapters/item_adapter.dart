@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/models/item.dart';
+import 'package:grocery_app/utils/constants.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/views/item_details.dart';
 
@@ -34,6 +35,7 @@ class _ItemAdapterState extends State<ItemAdapter> {
         Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetails(
           item: widget.item,
           showWholesalePrice: widget.showWholesalePrice,
+          selectedCount: selectedCount
         )));
       },
       child: Card(
@@ -47,25 +49,25 @@ class _ItemAdapterState extends State<ItemAdapter> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // widget.showWholesalePrice ?
-              // Container(
-              //   width: 120,
-              //   height: 20,
-              //   alignment: Alignment.ce,
-              //   decoration: BoxDecoration(
-              //     borderRadius: BorderRadius.all(Radius.circular(8)),
-              //     color: HexColor("#ED893E"),
-              //   ),
-              //   child: Text(
-              //     "Save ${totalDiscount.toString()}",
-              //     style: TextStyle(
-              //       color: Colors.white,
-              //       fontSize: 8,
-              //       fontWeight: FontWeight.w400,
-              //       fontFamily: 'inter-regular',
-              //     ),
-              //   ),
-              // ) : Container(width: 0, height: 0,),
+              totalDiscount != 0 ?
+              Container(
+                width: 120,
+                height: 20,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                  color: HexColor("#ED893E"),
+                ),
+                child: Text(
+                  "Save ${Constants.CURRENCY}${(totalDiscount)} on wholesale",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: 'inter-regular',
+                  ),
+                ),
+              ) : Container(width: 0, height: 0,),
               Container(
                 width: 240,
                 margin: const EdgeInsets.only(right: 5),
@@ -76,7 +78,7 @@ class _ItemAdapterState extends State<ItemAdapter> {
               Container(
                 alignment: Alignment.center,
                 width: 150,
-                child: widget.showWholesalePrice ? Image.asset("assets/images/cat_all.png", width: 120, height: 90,) : Image.asset("assets/images/lettuce.png", width: 120, height: 90,)
+                child: widget.showWholesalePrice ? Image.network(widget.item.wholesaleImage, width: 120, height: 90,) : Image.network(widget.item.image, width: 120, height: 90,)
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 10),
@@ -88,7 +90,7 @@ class _ItemAdapterState extends State<ItemAdapter> {
                 ),),
               ),
               Container(height: 5,),
-              Padding(
+              widget.showWholesalePrice && widget.item.retailPrice == 0 ? Container(width: 0, height: 0,) : Padding(
                 padding: const EdgeInsets.only(left: 10),
                 child: Text("\$${widget.item.retailPrice}", style: TextStyle(
                   color: Colors.black,
@@ -205,11 +207,13 @@ class _ItemAdapterState extends State<ItemAdapter> {
       // delete item from db
     }
 
-    if (widget.showWholesalePrice) {
+    if (widget.item.retailPrice != 0 && widget.item.wholesalePrice != 0) {
       double normalPrice = widget.item.retailPrice * widget.item.wholesaleUnit;
-      totalDiscount = ((normalPrice - widget.item.wholesalePrice) / normalPrice) * 100;
+      totalDiscount = ((normalPrice - widget.item.wholesalePrice) / normalPrice);
       selectedCount = int.parse(widget.item.wholesaleUnit.toString());
+      print("total discount: $totalDiscount}");
     }
+
     setState(() {
 
     });

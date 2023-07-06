@@ -38,7 +38,17 @@ class DbHelper {
   String col_phoneNumber = "phoneNumber";
   String col_favorites = "favorites";
 
+  String cart_table = "cart_table";
+  String col_cart_item_id = "id";
+  String col_buying_count = "buying_count";
+  String col_buying_wholesale = "buying_wholesale";
+
   Future createDb(Database db, int version) async {
+
+    String create_cart_table = "create table $cart_table ("
+        "$col_cart_item_id integer,"
+        "$col_buying_count integer,"
+        "$col_buying_wholesale varchar(10))";
 
     String create_category_table = "create table $category_table ("
         "$col_cat_id integer primary key,"
@@ -64,9 +74,40 @@ class DbHelper {
         "$col_retail_price double,"
         "$col_item_stock_count integer)";
 
+    await db.execute(create_cart_table);
     await db.execute(create_category_table);
     await db.execute(create_items_table);
     await db.execute(create_user_table);
+  }
+
+  Future<void> saveCart (int itemID, int buyingCount, String buyingWholesale) async {
+    Database db = await database;
+    String query = "insert into $cart_table ($col_cart_item_id, $col_buying_count, $col_buying_wholesale) values ("
+        "$itemID, $buyingCount, '$buyingWholesale')";
+    try {
+      await db.execute(query);
+    }
+    catch(e) {
+      print("db_helper.saveCart error: ${e.toString()}");
+      showToast("Cart not saved");
+    }
+  }
+
+  Future<List<Item>> getCart () async {
+    List<Item> cart = [];
+    Database db = await database;
+    String query = "select * from $cart_table";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      int id = result[i][col_item_id];
+      int buyingCount = result[i][col_buying_count];
+      String buying_wholesale = result[i][col_buying_wholesale];
+      Item item = await getItemByID(id);
+      item.buyingCount = buyingCount;
+      item.isBuyingWholesale = buying_wholesale;
+      cart.add(item);
+    }
+    return cart;
   }
 
   Future<void> saveCategory (Category cat) async {
@@ -150,6 +191,74 @@ class DbHelper {
     }
   }
 
+  Future<List<Item>> getWholesaleItems () async {
+    List<Item> list = [];
+    Database db = await database;
+    String query = "select * from $item_table";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      Item item = Item(
+        favorite: '',
+        discount: 0,
+        buyingCount: 0,
+        retailPrice: result[i][col_retail_price],
+        wholesaleUnit: result[i][col_wholesale_unit],
+        wholesalePrice: result[i][col_item_wholesale_price],
+        id: result[i][col_item_id],
+        isBuyingWholesale: "",
+        wholesaleImage: result[i][col_item_wholesale_image],
+        itemName: result[i][col_item_name],
+        description: result[i][col_item_desc],
+        category: result[i][col_item_category],
+        image: result[i][col_item_image],
+        stockCount: result[i][col_item_stock_count],
+      );
+      if (item.wholesalePrice != 0) {
+        if (item.wholesalePrice != 0 && item.wholesaleUnit > 1) {
+          double originalPrice = item.retailPrice * item.wholesaleUnit;
+          double discount = ((item.wholesalePrice - originalPrice) / originalPrice) * 100;
+          item.discount = discount;
+        }
+        list.add(item);
+      }
+    }
+    return list;
+  }
+
+  Future<List<Item>> getRetailItems () async {
+    List<Item> list = [];
+    Database db = await database;
+    String query = "select * from $item_table";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      Item item = Item(
+        favorite: '',
+        discount: 0,
+        buyingCount: 0,
+        retailPrice: result[i][col_retail_price],
+        wholesaleUnit: result[i][col_wholesale_unit],
+        wholesalePrice: result[i][col_item_wholesale_price],
+        id: result[i][col_item_id],
+        isBuyingWholesale: "",
+        wholesaleImage: result[i][col_item_wholesale_image],
+        itemName: result[i][col_item_name],
+        description: result[i][col_item_desc],
+        category: result[i][col_item_category],
+        image: result[i][col_item_image],
+        stockCount: result[i][col_item_stock_count],
+      );
+      if (item.retailPrice != 0) {
+        if (item.wholesalePrice != 0 && item.wholesaleUnit > 1) {
+          double originalPrice = item.retailPrice * item.wholesaleUnit;
+          double discount = ((item.wholesalePrice - originalPrice) / originalPrice) * 100;
+          item.discount = discount;
+        }
+        list.add(item);
+      }
+    }
+    return list;
+  }
+
   Future<List<Item>> getItems() async {
     List<Item> list = [];
     Database db = await database;
@@ -175,6 +284,61 @@ class DbHelper {
       list.add(item);
     }
     return list;
+  }
+
+  Future<List<Item>> getRelatedProducts (Item item, String category) async {
+    List<Item> list = [];
+    Database db = await database;
+    String query = "select * from $item_table where $col_item_category = '$category'";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      Item it = Item(
+        favorite: '',
+        discount: 0,
+        buyingCount: 0,
+        retailPrice: result[i][col_retail_price],
+        wholesaleUnit: result[i][col_wholesale_unit],
+        wholesalePrice: result[i][col_item_wholesale_price],
+        id: result[i][col_item_id],
+        isBuyingWholesale: "",
+        wholesaleImage: result[i][col_item_wholesale_image],
+        itemName: result[i][col_item_name],
+        description: result[i][col_item_desc],
+        category: result[i][col_item_category],
+        image: result[i][col_item_image],
+        stockCount: result[i][col_item_stock_count],
+      );
+      if (it.id != item.id) {
+        list.add(it);
+      }
+    }
+    return list;
+  }
+
+  Future<Item> getItemByID (int id) async {
+    var item = null;
+    Database db = await database;
+    String query = "select * from $item_table where $col_item_id = $id";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      item = Item(
+        favorite: '',
+        discount: 0,
+        buyingCount: 0,
+        retailPrice: result[i][col_retail_price],
+        wholesaleUnit: result[i][col_wholesale_unit],
+        wholesalePrice: result[i][col_item_wholesale_price],
+        id: result[i][col_item_id],
+        isBuyingWholesale: "",
+        wholesaleImage: result[i][col_item_wholesale_image],
+        itemName: result[i][col_item_name],
+        description: result[i][col_item_desc],
+        category: result[i][col_item_category],
+        image: result[i][col_item_image],
+        stockCount: result[i][col_item_stock_count],
+      );
+    }
+    return item;
   }
 
   factory DbHelper(){

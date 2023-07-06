@@ -28,7 +28,7 @@ class _CartAdapterState extends State<CartAdapter> {
         padding: const EdgeInsets.all(15),
         child: Row(
           children: [
-            Image.asset("assets/images/lettuce.png", width: 90, height: 75,),
+            Image.network(widget.item, width: 90, height: 75,),
             Container(width: 15,),
             Column(
               mainAxisSize: MainAxisSize.min,

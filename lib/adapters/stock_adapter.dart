@@ -25,13 +25,14 @@ class _StockAdapterState extends State<StockAdapter> {
       elevation: 3,
       child: Container(
         width: MediaQuery.of(context).size.width,
-        height: 75,
+        height: 70,
         margin: const EdgeInsets.all(15),
         child: Row(
           children: [
-            Image.asset("assets/images/lettuce.png"),
+            Image.network(widget.item.image),
             Container(width: 15,),
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(widget.item.itemName, style: TextStyle(
