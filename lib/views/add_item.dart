@@ -91,7 +91,7 @@ class _AddItemState extends State<AddItem> {
                               borderRadius: BorderRadius.all(Radius.circular(70)),
                               color: HexColor("#33000000"),
                             ),
-                            child: _image != null ? ClipRRect(
+                            child: widget.item != null ? Image.network(widget.item.image) : _image != null ? ClipRRect(
                               borderRadius: BorderRadius.circular(35.0), // Adjust the radius value as per your requirement
                               child: Image.file(
                                 _image, // Replace with your image asset path
@@ -419,6 +419,7 @@ class _AddItemState extends State<AddItem> {
                       child: MaterialButton(
                         color: HexColor("#66906A"),
                         onPressed: () async {
+
                           await saveItem();
                         },
                         shape: const RoundedRectangleBorder(
@@ -455,6 +456,14 @@ class _AddItemState extends State<AddItem> {
       stockCount = widget.item.stockCount;
       name_controller.text = widget.item.itemName;
       description_controller.text = widget.item.description;
+      category_controller.text = widget.item.category;
+      if (widget.item.wholesalePrice == 0) {
+        price_controller.text = widget.item.retailPrice.toStringAsFixed(2);
+      }
+      else {
+        price_controller.text = widget.item.wholesalePrice.toStringAsFixed(2);
+        isWholeSale = true;
+      }
     }
     categoryList = await db_helper.getCategories();
   }
@@ -495,77 +504,151 @@ class _AddItemState extends State<AddItem> {
       setState(() {
         isLoading = true;
       });
-      String category = category_controller.text.toString();
-      String name = name_controller.text.toString();
-      String desc = description_controller.text.toString();
-      await _uploadImage();
-      String image = _uploadedImageUrl;
-      String id = DateTime.now().millisecondsSinceEpoch.toString();
+      if (widget.item != null) {
+        String category = category_controller.text.toString();
+        String name = name_controller.text.toString();
+        String desc = description_controller.text.toString();
+        String image = widget.item.image;
+        if (_image != null) {
+          await _uploadImage();
+          image = _uploadedImageUrl;
+        }
+        String id = widget.item.id.toString();
+        double wholesalePrice;
+        double retailPrice;
+        int wholesaleUnit;
 
-      double wholesalePrice;
-      double retailPrice;
-      int wholesaleUnit;
+        if (isWholeSale) {
+          wholesalePrice = double.parse(price_controller.text.toString());
+          wholesaleUnit = int.parse(wholesale_unit_controller.text.toString());
+        }
+        else {
+          retailPrice = double.parse(price_controller.text.toString());
+        }
 
-      if (isWholeSale) {
-        wholesalePrice = double.parse(price_controller.text.toString());
-        wholesaleUnit = int.parse(wholesale_unit_controller.text.toString());
+        final params = {
+          "id": id,
+          "category": category,
+          "itemName": name,
+          "description": desc,
+          "image": image,
+          "isBuyingWholesale": "false",
+          "wholesaleImage": image,
+          "favorite": "false",
+          "wholesalePrice": isWholeSale ? wholesalePrice : 0,
+          "wholesaleUnit": isWholeSale ? wholesaleUnit : 0,
+          "buyingCount": 0,
+          "retailPrice": !isWholeSale ? retailPrice : 0,
+          "discount": 0,
+          "stockCount": stockCount,
+        };
+
+        Item item = Item(
+          id: int.parse(id),
+          stockCount: stockCount,
+          itemName: name,
+          description: desc,
+          category: category,
+          image: image,
+          isBuyingWholesale: "false",
+          wholesaleImage: image,
+          favorite: "false",
+          wholesalePrice: isWholeSale ? wholesalePrice : 0,
+          wholesaleUnit: isWholeSale ? wholesaleUnit : 0,
+          retailPrice: !isWholeSale ? retailPrice : 0,
+          buyingCount: 0,
+          discount: 0,
+        );
+        await db_helper.updateItem(item);
+        DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/items/$id");
+        await ref.set(params);
+
+        _image = null;
+        stockCount = 0;
+        category_controller.text = "";
+        name_controller.text = "";
+        description_controller.text = "";
+        wholesale_unit_controller.text = "";
+        price_controller.text = "";
+        isWholeSale = false;
+        showToast("Item updated");
+
       }
       else {
-        retailPrice = double.parse(price_controller.text.toString());
+        String category = category_controller.text.toString();
+        String name = name_controller.text.toString();
+        String desc = description_controller.text.toString();
+        await _uploadImage();
+        String image = _uploadedImageUrl;
+        String id = DateTime.now().millisecondsSinceEpoch.toString();
+
+        double wholesalePrice;
+        double retailPrice;
+        int wholesaleUnit;
+
+        if (isWholeSale) {
+          wholesalePrice = double.parse(price_controller.text.toString());
+          wholesaleUnit = int.parse(wholesale_unit_controller.text.toString());
+        }
+        else {
+          retailPrice = double.parse(price_controller.text.toString());
+        }
+
+        final params = {
+          "id": id,
+          "category": category,
+          "itemName": name,
+          "description": desc,
+          "image": image,
+          "isBuyingWholesale": "false",
+          "wholesaleImage": image,
+          "favorite": "false",
+          "wholesalePrice": isWholeSale ? wholesalePrice : 0,
+          "wholesaleUnit": isWholeSale ? wholesaleUnit : 0,
+          "buyingCount": 0,
+          "retailPrice": !isWholeSale ? retailPrice : 0,
+          "discount": 0,
+          "stockCount": stockCount,
+        };
+
+        Item item = Item(
+          id: int.parse(id),
+          stockCount: stockCount,
+          itemName: name,
+          description: desc,
+          category: category,
+          image: image,
+          isBuyingWholesale: "false",
+          wholesaleImage: image,
+          favorite: "false",
+          wholesalePrice: isWholeSale ? wholesalePrice : 0,
+          wholesaleUnit: isWholeSale ? wholesaleUnit : 0,
+          retailPrice: !isWholeSale ? retailPrice : 0,
+          buyingCount: 0,
+          discount: 0,
+        );
+        await db_helper.saveItem(item);
+
+        DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/items/$id");
+        await ref.set(params);
+
+        _image = null;
+        stockCount = 0;
+        category_controller.text = "";
+        name_controller.text = "";
+        description_controller.text = "";
+        wholesale_unit_controller.text = "";
+        price_controller.text = "";
+        isWholeSale = false;
+        showToast("Item uploaded");
       }
-
-      final params = {
-        "id": id,
-        "category": category,
-        "itemName": name,
-        "description": desc,
-        "image": image,
-        "isBuyingWholesale": "false",
-        "wholesaleImage": image,
-        "favorite": "false",
-        "wholesalePrice": isWholeSale ? wholesalePrice : 0,
-        "wholesaleUnit": isWholeSale ? wholesaleUnit : 0,
-        "buyingCount": 0,
-        "retailPrice": !isWholeSale ? retailPrice : 0,
-        "discount": 0,
-        "stockCount": stockCount,
-      };
-
-
-      Item item = Item(
-        id: int.parse(id),
-        stockCount: stockCount,
-        itemName: name,
-        description: desc,
-        category: category,
-        image: image,
-        isBuyingWholesale: "false",
-        wholesaleImage: image,
-        favorite: "false",
-        wholesalePrice: isWholeSale ? wholesalePrice : 0,
-        wholesaleUnit: isWholeSale ? wholesaleUnit : 0,
-        retailPrice: !isWholeSale ? retailPrice : 0,
-        buyingCount: 0,
-        discount: 0,
-      );
-      await db_helper.saveItem(item);
-
-      DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/items/$id");
-      await ref.set(params);
-
-      _image = null;
-      stockCount = 0;
-      category_controller.text = "";
-      name_controller.text = "";
-      description_controller.text = "";
-      wholesale_unit_controller.text = "";
-      price_controller.text = "";
-      isWholeSale = false;
 
       setState(() {
         isLoading = false;
       });
-      showToast("Item uploaded");
+    }
+    else {
+      showToast("Add at least one stock");
     }
   }
 

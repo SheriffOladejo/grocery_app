@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:grocery_app/models/app_user.dart';
+import 'package:grocery_app/models/item.dart';
+import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 
 class OrderPlacedScreen extends StatefulWidget {
@@ -11,6 +14,9 @@ class OrderPlacedScreen extends StatefulWidget {
 }
 
 class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
+
+  DbHelper db_helper = DbHelper();
+  AppUser user;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +79,20 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> init () async {
+    List<Item> cart = await db_helper.getCart();
+    user = await db_helper.getUser();
+    for (var i = 0; i < cart.length; i++) {
+      await db_helper.deleteCart(cart[i].id, user.phoneNumber);
+    }
+  }
+
+  @override
+  void initState () {
+    super.initState();
+    init();
   }
 
 }

@@ -63,7 +63,7 @@ class _CartScreenState extends State<CartScreen> {
           itemBuilder: (context, index) {
             return CartAdapter(
               item: cartList[index],
-              //showWholesalePrice: cartList[index].isBuyingWholesale == "true",
+              callback: callback,
             );
           },
         ),
@@ -162,7 +162,7 @@ class _CartScreenState extends State<CartScreen> {
                     isScrollControlled: true,
                     context: context,
                     builder: (BuildContext context) {
-                      return CheckoutScreen(totalPrice: 120, orderTotal: 230, itemCount: 10,);
+                      return CheckoutScreen(totalPrice: totalItemsPrice, orderTotal: orderTotal, itemCount: cartList.length,);
                     }
                   );
                 },
@@ -194,8 +194,14 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
+  Future<void> callback () async {
+    await init();
+  }
+
   Future<void> init() async {
     cartList = await db_helper.getCart();
+    totalItemsPrice = 0;
+    orderTotal = 0;
 
     for (var i = 0; i < cartList.length; i++) {
       if (cartList[i].isBuyingWholesale == 'true') {
@@ -209,6 +215,11 @@ class _CartScreenState extends State<CartScreen> {
     }
 
     orderTotal = totalItemsPrice + deliveryPrice;
+
+    if (cartList.isEmpty) {
+      orderTotal = 0;
+      totalItemsPrice = 0;
+    }
 
     setState(() {
 

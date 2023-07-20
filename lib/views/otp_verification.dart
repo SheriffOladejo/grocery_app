@@ -1,21 +1,27 @@
 import 'dart:async';
-
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_otp_text_field/flutter_otp_text_field.dart';
+import 'package:grocery_app/models/app_user.dart';
+import 'package:grocery_app/utils/constants.dart';
+import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/utils/methods.dart';
 import 'package:grocery_app/views/bottom_nav.dart';
-import 'package:grocery_app/views/home_screen.dart';
 
 class PhoneVerification extends StatefulWidget {
 
-  String phoneNumber = "";
+  String phoneNumber;
+  String email;
+  String address;
 
-  PhoneVerification({this.phoneNumber});
+  PhoneVerification({this.phoneNumber, this.email, this.address});
 
   @override
   State<PhoneVerification> createState() => _PhoneVerificationState();
+
 }
 
 class _PhoneVerificationState extends State<PhoneVerification> {
@@ -31,6 +37,8 @@ class _PhoneVerificationState extends State<PhoneVerification> {
 
   Timer timer;
 
+  var db_helper = DbHelper();
+
   void startTimer() {
     timer = Timer.periodic(Duration(seconds: 1), (Timer t) {
       setState(() {
@@ -38,6 +46,7 @@ class _PhoneVerificationState extends State<PhoneVerification> {
           t.cancel();
           setState(() {
             canResend = true;
+            secondsRemaining = 45;
           });
         } else {
           secondsRemaining -= 1;
@@ -152,7 +161,7 @@ class _PhoneVerificationState extends State<PhoneVerification> {
     setState(() {
       isLoading = true;
     });
-
+    startTimer();
     showToast("Sending OTP, please wait");
     try {
       await verifyPhoneNumber(
@@ -170,7 +179,6 @@ class _PhoneVerificationState extends State<PhoneVerification> {
         },
             (verificationId, forceResendingToken) {
           showToast("A verification code has been sent to you");
-          startTimer();
           setState(() {
             this.verificationId = verificationId;
             this.forceResendingToken = forceResendingToken;
@@ -208,14 +216,48 @@ class _PhoneVerificationState extends State<PhoneVerification> {
     }
   }
 
+  Future<String> createStripeUser(String email, String phoneNumber) async {
+    String stripe_id = "";
+    Map<String, String> headers = {
+      'Authorization': 'Bearer ${Constants.stripe_secret_key}',
+      'Content-Type': 'application/x-www-form-urlencoded'
+    };
+    String url = 'https://api.stripe.com/v1/customers';
+    var response = await http.post(
+      Uri.parse(url),
+      headers: headers,
+      body: {
+        'description': 'New customer',
+        'email': email,
+        'phone': phoneNumber
+      },
+    );
+    if (response.statusCode == 200) {
+      var json = jsonDecode(response.body.toString());
+      stripe_id = json["id"];
+    } else {
+      print("otp_verification.createStripeUser: Unable to create stripe user" + json.decode(response.body));
+    }
+    return stripe_id;
+  }
+
   Future<void> signInWithCredential(AuthCredential credential) async {
     try {
       UserCredential userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
-      // var db = DbHelper();
-      // await db.savePhoneNumber(phoneNumber);
+      String stripeID = await createStripeUser(widget.email, widget.phoneNumber);
+      var user = AppUser(
+        email: widget.email,
+        phoneNumber: widget.phoneNumber,
+        deliveryAddress: widget.address,
+        userID: widget.phoneNumber,
+        dateJoined: DateTime.now().millisecondsSinceEpoch,
+        stripeID: stripeID,
+      );
+      await db_helper.saveUser(user, false);
       Navigator.of(context).pushReplacement(slideLeft(const BottomNav()));
     } catch (e) {
       showToast("An error occurred, probably incorrect code");
+      print("otp_verification.signInWithCredential error: ${e.toString()}");
       setState(() {
         isLoading = false;
       });

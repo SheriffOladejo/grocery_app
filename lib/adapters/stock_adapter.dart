@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:grocery_app/models/item.dart';
 import 'package:grocery_app/utils/hex_color.dart';
+import 'package:grocery_app/utils/methods.dart';
+import 'package:grocery_app/views/add_item.dart';
 
 class StockAdapter extends StatefulWidget {
 
@@ -35,7 +37,7 @@ class _StockAdapterState extends State<StockAdapter> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(widget.item.itemName, style: TextStyle(
+                Text(widget.item.itemName.replaceRange(0, 1, widget.item.itemName.substring(0, 1).toUpperCase()), style: TextStyle(
                   color: Colors.black,
                   fontFamily: 'inter-medium',
                   fontSize: 12,
@@ -51,7 +53,12 @@ class _StockAdapterState extends State<StockAdapter> {
               ],
             ),
             Spacer(),
-            Icon(Icons.edit, color: HexColor("#66906A"),),
+            GestureDetector(
+              onTap: () async {
+                Navigator.push(context, slideLeft(AddItem(item: widget.item,)));
+              },
+              child: Icon(Icons.edit, color: HexColor("#66906A"),)
+            ),
           ],
         ),
       ),

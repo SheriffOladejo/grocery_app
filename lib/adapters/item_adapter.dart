@@ -82,7 +82,7 @@ class _ItemAdapterState extends State<ItemAdapter> {
               ),
               Padding(
                 padding: const EdgeInsets.only(left: 10),
-                child: Text(widget.item.itemName, style: TextStyle(
+                child: Text(widget.item.itemName.replaceRange(0, 1, widget.item.itemName.substring(0, 1).toUpperCase()), style: TextStyle(
                   color: Colors.black,
                   fontFamily: 'inter-medium',
                   fontWeight: FontWeight.w500,
@@ -92,7 +92,7 @@ class _ItemAdapterState extends State<ItemAdapter> {
               Container(height: 5,),
               widget.showWholesalePrice && widget.item.retailPrice == 0 ? Container(width: 0, height: 0,) : Padding(
                 padding: const EdgeInsets.only(left: 10),
-                child: Text("\$${widget.item.retailPrice}", style: TextStyle(
+                child: Text("${Constants.CURRENCY}${widget.item.retailPrice}", style: TextStyle(
                   color: Colors.black,
                   fontFamily: 'inter-bold',
                   fontWeight: FontWeight.w600,
@@ -103,7 +103,7 @@ class _ItemAdapterState extends State<ItemAdapter> {
               Container(height: 5,),
               widget.showWholesalePrice ? Padding(
                 padding: const EdgeInsets.only(left: 10),
-                child: Text("\$${widget.item.wholesalePrice}", style: TextStyle(
+                child: Text("${Constants.CURRENCY}${widget.item.wholesalePrice}", style: TextStyle(
                   color: Colors.black,
                   fontFamily: 'inter-bold',
                   fontWeight: FontWeight.w600,

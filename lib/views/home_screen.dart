@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/adapters/category_adapter.dart';
 import 'package:grocery_app/adapters/item_adapter.dart';
+import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/models/category.dart';
 import 'package:grocery_app/models/item.dart';
 import 'package:grocery_app/utils/db_helper.dart';
@@ -22,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
 
   var searchController = TextEditingController();
+  List<Item> searchList = [];
 
   List<Category> categoryList = [];
   List<Item> itemList = [];
@@ -33,46 +35,57 @@ class _HomeScreenState extends State<HomeScreen> {
   int cartCount = 0;
 
   var db_helper = DbHelper();
+  AppUser user;
 
   bool isLoading = false;
 
+  Future<void> search (String search) async {
+    searchList.clear();
+    if (search.isEmpty) {
+      if (showRetail) {
+        retailList = await db_helper.getRetailItems();
+      }
+      else {
+        wholesaleList = await db_helper.getWholesaleItems();
+      }
+    }
+    else {
+      if (showRetail) {
+        for (var i = 0; i < retailList.length; i++) {
+          if (retailList[i].itemName.contains(search)) {
+            searchList.add(retailList[i]);
+          }
+        }
+      }
+      else {
+        for (var i = 0; i < wholesaleList.length; i++) {
+          if (wholesaleList[i].itemName.contains(search)) {
+            searchList.add(wholesaleList[i]);
+          }
+        }
+      }
+      setState(() {
+
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    getCartCount();
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        leading: Image.asset("assets/images/home_location.png"),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Deliver to", style: TextStyle(
-              color: Colors.grey,
-              fontWeight: FontWeight.w500,
-              fontFamily: 'inter-medium',
-              fontSize: 14,
-            ),),
-            Container(height: 5,),
-            InkWell(
-              onTap: () {
-
-              },
-              child: Row(
-                children: [
-                  Text("Sector 7, OONI layout", style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 14,
-                    fontFamily: 'inter-medium',
-                    fontWeight: FontWeight.w500,
-                  ),),
-                  Container(width: 5,),
-                  Icon(CupertinoIcons.chevron_down, color: Colors.black, size: 12,),
-                ],
-              ),
-            ),
-          ],
+        leading: Container(
+          alignment: Alignment.center,
+          child: Text("  Home", style: TextStyle(
+            color: Colors.black,
+            fontFamily: 'inter-bold',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),),
         ),
         actions: [
           InkWell(
@@ -123,6 +136,9 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 50,
               width: MediaQuery.of(context).size.width,
               child: TextFormField(
+                onChanged: (val) async {
+                  await search(searchController.text);
+                },
                 controller: searchController,
                 decoration: InputDecoration(
                   prefixIcon: Icon(Icons.search),
@@ -160,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: categoryList.length,
                   scrollDirection: Axis.horizontal,
                   itemBuilder: (context, index) {
-                    return CategoryAdapter(category: categoryList[index],);
+                    return CategoryAdapter(category: categoryList[index], callback: categoryCallback);
                   }),
             ),
             Container(height: 15,),
@@ -230,8 +246,8 @@ class _HomeScreenState extends State<HomeScreen> {
               width: MediaQuery.of(context).size.width,
               child: GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisExtent: showRetail ? 230 : 240),
-                itemBuilder: (_, index) => ItemAdapter(item: showRetail ? retailList[index] : wholesaleList[index], showWholesalePrice: !showRetail,),
-                itemCount: showRetail ? retailList.length : wholesaleList.length,
+                itemBuilder: (_, index) => ItemAdapter(item: searchList.isNotEmpty ? searchList[index] : showRetail ? retailList[index] : wholesaleList[index], showWholesalePrice: !showRetail,),
+                itemCount: searchList.isNotEmpty ? searchList.length : showRetail ? retailList.length : wholesaleList.length,
               ),
             )
           ],
@@ -240,22 +256,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> categoryCallback (String category) async {
+    if (category == "all") {
+      retailList = await db_helper.getRetailItems();
+      wholesaleList = await db_helper.getWholesaleItems();
+    }
+    else {
+      retailList = await db_helper.getRetailItemsByCategory(category);
+      wholesaleList = await db_helper.getWholesaleItemsByCategory(category);
+    }
+    setState(() {
+
+    });
+  }
+
   Future<void> init () async {
     categoryList = await db_helper.getCategories();
     itemList = await db_helper.getItems();
     if (itemList.isEmpty) {
       await getItems();
     }
-    if (categoryList.isEmpty) {
+    if (categoryList.length == 1) {
       await getCategories();
     }
     retailList = await db_helper.getRetailItems();
     wholesaleList = await db_helper.getWholesaleItems();
+    user = await db_helper.getUser();
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  Future<void> getCartCount () async {
     List<Item> cart = await db_helper.getCart();
     cartCount = cart.length;
 
     setState(() {
-      isLoading = false;
+
     });
   }
 
@@ -271,7 +309,6 @@ class _HomeScreenState extends State<HomeScreen> {
         title: element.child("title").value,
         image: element.child("image").value,
       );
-      print("saving ${c.title}");
       await db_helper.saveCategory(c);
     });
     categoryList = await db_helper.getCategories();
@@ -303,7 +340,6 @@ class _HomeScreenState extends State<HomeScreen> {
         retailPrice: double.parse(element.child("retailPrice").value.toString()),
         discount: double.parse(element.child("discount").value.toString()),
       );
-      print("saving ${i.itemName}");
       await db_helper.saveItem(i);
     });
     itemList = await db_helper.getItems();

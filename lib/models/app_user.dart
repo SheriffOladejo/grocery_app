@@ -4,12 +4,16 @@ class AppUser {
   String deliveryAddress;
   String phoneNumber;
   String email;
+  String stripeID;
+  int dateJoined;
 
   AppUser({
     this.userID,
     this.deliveryAddress,
     this.phoneNumber,
     this.email,
+    this.dateJoined,
+    this.stripeID,
   });
 
 }

@@ -1,6 +1,8 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/models/category.dart';
 import 'package:grocery_app/models/item.dart';
+import 'package:grocery_app/models/order_detail.dart';
 import 'package:grocery_app/utils/methods.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -36,6 +38,8 @@ class DbHelper {
   String col_userID = "userID";
   String col_deliveryAddress = "deliveryAddress";
   String col_phoneNumber = "phoneNumber";
+  String col_date_joined = "dateJoined";
+  String col_stripe_id = "stripeID";
   String col_favorites = "favorites";
 
   String cart_table = "cart_table";
@@ -43,7 +47,33 @@ class DbHelper {
   String col_buying_count = "buying_count";
   String col_buying_wholesale = "buying_wholesale";
 
+  String order_table = "order_table";
+  String col_invoice_id = "invoiceID";
+  String col_order_id = "orderID";
+  String col_order_timestamp = "timestamp";
+  String col_delivery_price = "deliveryPrice";
+  String col_total_items_cost = "totalItemsCost";
+  String col_order_total = "orderTotal";
+  String col_owner_id = "ownerID";
+  String col_order_payment_status = "paymentStatus";
+  String col_order_delivery_status = "deliveryStatus";
+  String col_order_desc = "desc";
+  String col_selected_items = "selectedItems";
+
   Future createDb(Database db, int version) async {
+
+    String create_order_table = "create table $order_table ("
+        "$col_order_id text,"
+        "$col_invoice_id text,"
+        "$col_order_timestamp integer,"
+        "$col_delivery_price double,"
+        "$col_total_items_cost double,"
+        "$col_order_total double,"
+        "$col_order_payment_status varchar(20),"
+        "$col_order_delivery_status varchar(20),"
+        "$col_order_desc text,"
+        "$col_owner_id text,"
+        "$col_selected_items text)";
 
     String create_cart_table = "create table $cart_table ("
         "$col_cart_item_id integer,"
@@ -60,6 +90,8 @@ class DbHelper {
         "$col_deliveryAddress text,"
         "$col_phoneNumber text,"
         "$col_email text,"
+        "$col_date_joined integer,"
+        "$col_stripe_id text,"
         "$col_favorites text)";
 
     String create_items_table = "create table $item_table ("
@@ -78,14 +110,123 @@ class DbHelper {
     await db.execute(create_category_table);
     await db.execute(create_items_table);
     await db.execute(create_user_table);
+    await db.execute(create_order_table);
   }
 
-  Future<void> saveCart (int itemID, int buyingCount, String buyingWholesale) async {
+  Future<void> saveOrder (OrderDetail order, bool exist, bool update) async {
+    Database db = await database;
+    String query = "insert into $order_table ($col_order_id, $col_order_timestamp, "
+        "$col_delivery_price, $col_total_items_cost, $col_order_total, $col_owner_id, "
+        "$col_order_payment_status, $col_order_desc, $col_selected_items, $col_invoice_id, $col_order_delivery_status) values ('${order.orderID}', "
+        "${order.timestamp}, ${order.deliveryPrice}, ${order.totalItemsCost}, "
+        "${order.orderTotal}, '${order.ownerID}', '${order.paymentStatus}', '${order.desc}', '${order.selectedItems}', '${order.invoice_id}', '${order.deliveryStatus}')";
+    try {
+      if (!update) {
+        await db.execute(query);
+      }
+      final params = {
+        "orderID": order.orderID,
+        "orderTimestamp": order.timestamp,
+        "deliveryPrice": order.deliveryPrice,
+        "totalItemsCost": order.totalItemsCost,
+        "orderTotal": order.orderTotal,
+        "ownerID": order.ownerID,
+        "paymentStatus": order.paymentStatus,
+        "desc": order.desc,
+        "selectedItems": order.selectedItems,
+        "invoiceID": order.invoice_id,
+        "deliveryStatus": order.deliveryStatus
+      };
+      AppUser user = await getUser();
+      DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/${user.phoneNumber}/orders/${order.orderID}");
+      DatabaseReference ref2 = FirebaseDatabase.instance.ref().child("data/orders/${order.orderID}");
+      if (!exist) {
+        await ref.set(params);
+        await ref2.set(params);
+      }
+    }
+    catch(e) {
+      print("db_helper.saveOrder error: ${e.toString()}");
+      showToast("Order not saved");
+    }
+  }
+
+  Future<void> updateOrderStatus (String invoiceID, String status, String deliveryStatus) async {
+    Database db = await database;
+    String query = "update $order_table set $col_order_payment_status = '$status',"
+        "$col_order_delivery_status = '$deliveryStatus' where $col_invoice_id = '$invoiceID'";
+    await db.execute(query);
+  }
+
+  Future<List<OrderDetail>> getOrders () async {
+    List<OrderDetail> orders = [];
+    Database db = await database;
+    String query = "select * from $order_table";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      String orderID = result[i][col_order_id];
+      int timestamp = int.parse(result[i][col_order_timestamp].toString());
+      String invoiceID = result[i][col_invoice_id].toString();
+      double deliveryPrice = double.parse(result[i][col_delivery_price].toString());
+      double totalItemsCost = double.parse(result[i][col_total_items_cost].toString());
+      String ownerID = result[i][col_owner_id];
+      String paymentStatus = result[i][col_order_payment_status];
+      String deliveryStatus = result[i][col_order_delivery_status];
+      String desc = result[i][col_order_desc];
+      String selectedItems = result[i][col_selected_items];
+
+      var order = OrderDetail(
+        orderID: orderID,
+        timestamp: timestamp,
+        invoice_id: invoiceID,
+        deliveryPrice: deliveryPrice,
+        totalItemsCost: totalItemsCost,
+        ownerID: ownerID,
+        paymentStatus: paymentStatus,
+        deliveryStatus: deliveryStatus,
+        desc: desc,
+        selectedItems: selectedItems,
+      );
+
+      orders.add(order);
+
+    }
+    return orders;
+  }
+
+  Future<void> deleteCart (int itemID, String phoneNumber) async {
+    Database db = await database;
+    String query = "delete from $cart_table where $col_cart_item_id = $itemID";
+    await db.execute(query);
+    DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/$phoneNumber/cart/$itemID");
+    await ref.remove();
+  }
+
+  Future<void> updateCart (int itemID, int buyingCount, phoneNumber) async {
+    Database db = await database;
+    String query = "update $cart_table set $col_buying_count = $buyingCount where $col_cart_item_id = $itemID";
+    await db.execute(query);
+    final params = {
+      "itemID": itemID,
+      "buyingCount": buyingCount,
+    };
+    DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/$phoneNumber/cart/$itemID");
+    await ref.set(params);
+  }
+
+  Future<void> saveCart (int itemID, int buyingCount, String buyingWholesale, String phoneNumber) async {
     Database db = await database;
     String query = "insert into $cart_table ($col_cart_item_id, $col_buying_count, $col_buying_wholesale) values ("
         "$itemID, $buyingCount, '$buyingWholesale')";
     try {
       await db.execute(query);
+      final params = {
+        "itemID": itemID,
+        "buyingCount": buyingCount,
+        "buyingWholeSale": buyingWholesale,
+      };
+      DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/$phoneNumber/cart/$itemID");
+      await ref.set(params);
     }
     catch(e) {
       print("db_helper.saveCart error: ${e.toString()}");
@@ -124,7 +265,11 @@ class DbHelper {
   }
 
   Future<List<Category>> getCategories () async {
-    List<Category> list = [];
+    List<Category> list = [Category(
+        title: "all",
+        image: "",
+        id: 1
+    )];
     Database db = await database;
     String query = "select * from $category_table";
     List<Map<String, Object>> result = await db.rawQuery(query);
@@ -149,19 +294,46 @@ class DbHelper {
         userID: result[i][col_userID].toString(),
         email: result[i][col_email].toString(),
         phoneNumber: result[i][col_phoneNumber].toString(),
-        deliveryAddress: result[i][col_deliveryAddress].toString()
+        deliveryAddress: result[i][col_deliveryAddress].toString(),
+        dateJoined: result[i][col_date_joined],
+        stripeID: result[i][col_stripe_id],
       );
     }
     return user;
   }
 
-  Future<void> saveUser (AppUser user) async {
+  Future<AppUser> getUserByID (String phoneNumber) async {
+    final snapshot = await FirebaseDatabase.instance.ref().child('data/users/$phoneNumber').get();
+    Map<dynamic, dynamic> values = snapshot.value;
+    AppUser u;
+    u = AppUser(
+        userID: values["userID"].toString(),
+        dateJoined: int.parse(values["dateJoined"].toString()),
+        email: values["email"].toString(),
+        phoneNumber: values["phoneNumber"].toString(),
+        deliveryAddress: values["deliveryAddress"].toString()
+    );
+    return u;
+  }
+
+  Future<void> saveUser (AppUser user, bool exist) async {
     Database db = await database;
     String query = "insert into $user_table ($col_userID, $col_deliveryAddress, $col_phoneNumber, "
-        "$col_email) values ('${user.userID}', '${user.deliveryAddress}', "
-        "'${user.phoneNumber}', '${user.email}')";
+        "$col_email, $col_date_joined, $col_stripe_id) values ('${user.userID}', '${user.deliveryAddress}', "
+        "'${user.phoneNumber}', '${user.email}', ${user.dateJoined}, '${user.stripeID}')";
     try {
       await db.execute(query);
+      final params = {
+        "userID": user.userID,
+        "deliveryAddress": user.deliveryAddress,
+        "phoneNumber": user.phoneNumber,
+        "email": user.email,
+        "dateJoined": user.dateJoined
+      };
+      DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/${user.phoneNumber}");
+      if (!exist) {
+        await ref.set(params);
+      }
     }
     catch(e) {
       print("db_helper.saveUser error: ${e.toString()}");
@@ -173,6 +345,11 @@ class DbHelper {
     Database db = await database;
     String query = "update $user_table set $col_deliveryAddress = '${user.deliveryAddress}'";
     await db.execute(query);
+    final params = {
+      "deliveryAddress": user.deliveryAddress,
+    };
+    DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/${user.phoneNumber}");
+    await ref.set(params);
   }
 
   Future<void> saveItem (Item item) async {
@@ -189,6 +366,55 @@ class DbHelper {
       print("db_helper.saveItem error: ${e.toString()}");
       showToast("Item not saved");
     }
+  }
+
+  Future<void> updateItem (Item item) async {
+    Database db = await database;
+    String query = "update $item_table set $col_item_name = '${item.itemName}', $col_item_desc = '${item.description}', "
+        "$col_item_category = '${item.category}', $col_item_image = '${item.image}', $col_item_wholesale_image = '${item.wholesaleImage}', "
+        "$col_item_stock_count = '${item.stockCount}', $col_item_wholesale_price = '${item.wholesalePrice}', $col_wholesale_unit = '${item.wholesaleUnit}', "
+        "$col_retail_price = '${item.retailPrice}' where $col_item_id = '${item.id}'";
+    try {
+      await db.execute(query);
+    }
+    catch(e) {
+      print("db_helper.updateItem error: ${e.toString()}");
+      showToast("Item not updated");
+    }
+  }
+
+  Future<List<Item>> getWholesaleItemsByCategory (String category) async {
+    List<Item> list = [];
+    Database db = await database;
+    String query = "select * from $item_table where $col_item_category = '$category'";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      Item item = Item(
+        favorite: '',
+        discount: 0,
+        buyingCount: 0,
+        retailPrice: result[i][col_retail_price],
+        wholesaleUnit: result[i][col_wholesale_unit],
+        wholesalePrice: result[i][col_item_wholesale_price],
+        id: result[i][col_item_id],
+        isBuyingWholesale: "",
+        wholesaleImage: result[i][col_item_wholesale_image],
+        itemName: result[i][col_item_name],
+        description: result[i][col_item_desc],
+        category: result[i][col_item_category],
+        image: result[i][col_item_image],
+        stockCount: result[i][col_item_stock_count],
+      );
+      if (item.wholesalePrice != 0) {
+        if (item.wholesalePrice != 0 && item.wholesaleUnit > 1) {
+          double originalPrice = item.retailPrice * item.wholesaleUnit;
+          double discount = ((item.wholesalePrice - originalPrice) / originalPrice) * 100;
+          item.discount = discount;
+        }
+        list.add(item);
+      }
+    }
+    return list;
   }
 
   Future<List<Item>> getWholesaleItems () async {
@@ -214,6 +440,40 @@ class DbHelper {
         stockCount: result[i][col_item_stock_count],
       );
       if (item.wholesalePrice != 0) {
+        if (item.wholesalePrice != 0 && item.wholesaleUnit > 1) {
+          double originalPrice = item.retailPrice * item.wholesaleUnit;
+          double discount = ((item.wholesalePrice - originalPrice) / originalPrice) * 100;
+          item.discount = discount;
+        }
+        list.add(item);
+      }
+    }
+    return list;
+  }
+
+  Future<List<Item>> getRetailItemsByCategory (String category) async {
+    List<Item> list = [];
+    Database db = await database;
+    String query = "select * from $item_table where $col_item_category = '$category'";
+    List<Map<String, Object>> result = await db.rawQuery(query);
+    for (int i = 0; i < result.length; i++) {
+      Item item = Item(
+        favorite: '',
+        discount: 0,
+        buyingCount: 0,
+        retailPrice: result[i][col_retail_price],
+        wholesaleUnit: result[i][col_wholesale_unit],
+        wholesalePrice: result[i][col_item_wholesale_price],
+        id: result[i][col_item_id],
+        isBuyingWholesale: "",
+        wholesaleImage: result[i][col_item_wholesale_image],
+        itemName: result[i][col_item_name],
+        description: result[i][col_item_desc],
+        category: result[i][col_item_category],
+        image: result[i][col_item_image],
+        stockCount: result[i][col_item_stock_count],
+      );
+      if (item.retailPrice != 0) {
         if (item.wholesalePrice != 0 && item.wholesaleUnit > 1) {
           double originalPrice = item.retailPrice * item.wholesaleUnit;
           double discount = ((item.wholesalePrice - originalPrice) / originalPrice) * 100;

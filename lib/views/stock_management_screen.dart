@@ -20,6 +20,23 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
   List<Item> stockList = [];
   var db_helper = DbHelper();
 
+  var search_controller = TextEditingController();
+  List<Item> searchList = [];
+
+  Future<void> search (String search) async {
+    searchList.clear();
+    if (search.isNotEmpty) {
+      for (var i = 0; i < stockList.length; i++) {
+        if (stockList[i].itemName.contains(search)) {
+          searchList.add(stockList[i]);
+        }
+      }
+    }
+    setState(() {
+
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     init();
@@ -59,7 +76,11 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
                     ),
                   ),
                   Expanded(
-                    child: TextField(
+                    child: TextFormField(
+                      onChanged: (val) async {
+                        await search(search_controller.text);
+                      },
+                      controller: search_controller,
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         hintText: 'Search',
@@ -76,12 +97,12 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
             Container(
               height: 500,
               child: ListView.builder(
-                itemCount: stockList.length,
+                itemCount: searchList.isNotEmpty ? searchList.length : stockList.length,
                 shrinkWrap: true,
                 controller: ScrollController(),
                 itemBuilder: (context, index) {
                   return StockAdapter(
-                    item: stockList[index],
+                    item: searchList.isNotEmpty ? searchList[index] : stockList[index],
                   );
                 },
               ),
@@ -100,11 +121,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
   }
 
   Future<void> init () async {
-    List<Item> l = await db_helper.getItems();
-    for (var i =0 ; i < 6; i++) {
-      stockList.addAll(l);
-    }
-
+    stockList = await db_helper.getItems();
     setState(() {
 
     });

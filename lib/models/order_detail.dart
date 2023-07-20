@@ -1,20 +1,24 @@
 class OrderDetail {
 
-  int orderID;
+  String orderID;
   int timestamp;
+  String invoice_id;
   double deliveryPrice;
   double totalItemsCost;
   double orderTotal;
-  String ownerEmail;
-  String status;
+  String ownerID;
+  String paymentStatus;
+  String deliveryStatus;
   String desc;
   String selectedItems;
 
   OrderDetail({
     this.orderID,
-    this.ownerEmail,
+    this.invoice_id,
+    this.ownerID,
     this.timestamp,
-    this.status,
+    this.paymentStatus,
+    this.deliveryStatus,
     this.desc,
     this.orderTotal,
     this.totalItemsCost,

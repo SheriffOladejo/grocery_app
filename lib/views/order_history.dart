@@ -1,63 +1,58 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/adapters/order_details_adapter.dart';
-import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/models/order_detail.dart';
 import 'package:grocery_app/utils/db_helper.dart';
 
-class OrderDetailsScreen extends StatefulWidget {
+import '../adapters/order_history_adapter.dart';
 
-  const OrderDetailsScreen({Key key}) : super(key: key);
+class OrderHistory extends StatefulWidget {
 
   @override
-  State<OrderDetailsScreen> createState() => _OrderDetailsScreenState();
+  State<OrderHistory> createState() => _OrderHistoryState();
 
 }
 
-class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
+class _OrderHistoryState extends State<OrderHistory> {
 
-  List<OrderDetail> orderList = [];
-
-  var db_helper = DbHelper();
+  DbHelper db_helper = DbHelper();
 
   bool is_loading = false;
-  AppUser user;
+
+  List<OrderDetail> orders = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+          },
+          child: Icon(Icons.arrow_back, color: Colors.black,),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
-        title: Text("Order details", style: TextStyle(
+        title: Text("Order history", style: TextStyle(
           color: Colors.black,
           fontSize: 20,
           fontWeight: FontWeight.w700,
           fontFamily: 'inter-bold',
         ),),
         centerTitle: true,
-        actions: [
-          GestureDetector(
-            onTap: () async {
-              await init();
-            },
-            child: Icon(Icons.refresh, color: Colors.black,),
-          ),
-          Container(width: 15,),
-        ],
       ),
       body: Container(
         width: MediaQuery.of(context).size.width,
         height: MediaQuery.of(context).size.height,
         padding: const EdgeInsets.all(15),
         child: is_loading ? Center(child: CircularProgressIndicator(),) : ListView.builder(
-          itemCount: orderList.length,
+          itemCount: orders.length,
           shrinkWrap: true,
           controller: ScrollController(),
           itemBuilder: (context, index) {
-            return OrderDetailsAdapter(
-              order: orderList[index],
+            return OrderHistoryAdapter(
+              order: orders[index],
             );
           },
         ),
@@ -66,12 +61,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> init () async {
-    orderList.clear();
     setState(() {
       is_loading = true;
     });
     final order = await FirebaseDatabase.instance.ref().child('data/orders').get();
-    user = await db_helper.getUser();
     if (order != null) {
       final orderValues = order.children;
       orderValues.forEach((element) async {
@@ -99,16 +92,11 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             selectedItems: selectedItems,
             invoice_id: invoiceID
         );
-        if (ownerID == user.phoneNumber) {
-          orderList.add(order);
-        }
+        orders.add(order);
       });
     }
     setState(() {
       is_loading = false;
-    });
-    setState(() {
-
     });
   }
 

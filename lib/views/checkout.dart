@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/utils/constants.dart';
+import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/utils/methods.dart';
+import 'package:grocery_app/views/card_page.dart';
+import 'package:grocery_app/views/mpesa_payment.dart';
 import 'package:grocery_app/views/order_placed.dart';
+import 'package:grocery_app/views/select_location.dart';
 
 class CheckoutScreen extends StatefulWidget {
 
@@ -21,7 +27,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   var addressController = TextEditingController();
 
+  double lat, lng;
+
   String selectedOption;
+
+  double delivery = Constants.DELIVERY_PRICE;
+
+  var db_helper = DbHelper();
+  AppUser user;
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +72,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
                 Text(
-                  "\$${widget.totalPrice.toStringAsFixed(2)}",
+                  "${Constants.CURRENCY}${widget.totalPrice.toStringAsFixed(2)}",
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 10,
@@ -83,7 +96,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
                 Text(
-                  "\$${Constants.DELIVERY_PRICE.toStringAsFixed(2)}",
+                  "${Constants.CURRENCY}${delivery.toStringAsFixed(2)}",
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 10,
@@ -107,7 +120,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 ),
                 Text(
-                  "\$${widget.orderTotal.toStringAsFixed(2)}",
+                  "${Constants.CURRENCY}${widget.orderTotal.toStringAsFixed(2)}",
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 12,
@@ -129,13 +142,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   fontSize: 16,
                 ),),
                 Spacer(),
-                Text(
-                  "Edit address",
-                  style: TextStyle(
-                    color: HexColor("#66906A"),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'inter-bold',
+                GestureDetector(
+                  onTap: () async {
+                    var address = await Navigator.push(context, slideLeft(SelectLocation(lat: lat, lng: lng,)));
+                    addressController.text = address;
+                    setState(() {
+
+                    });
+                  },
+                  child: Text(
+                    "Edit address",
+                    style: TextStyle(
+                      color: HexColor("#66906A"),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'inter-bold',
+                    ),
                   ),
                 ),
               ],
@@ -216,43 +238,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     selectedOption = value;
                   });
                 },
-                title: Text("Pay with card", style: TextStyle(
+                title: Text("Pay with MPesa", style: TextStyle(
                   color: Colors.black,
                   fontFamily: 'inter-medium',
                   fontWeight: FontWeight.w500,
                   fontSize: 12,
                 ),),
-                subtitle: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      "We accept: ",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: 'inter-medium',
-                      ),
-                    ),
-                    Image.asset("assets/images/mastercard.png"),
-                    Container(width: 5,),
-                    Image.asset("assets/images/visa.png"),
-                  ],
-                )
             ),
             Container(height: 15,),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
               child: MaterialButton(
                 onPressed: () {
-                  Navigator.pop(context);
-                  showModalBottomSheet(
-                      isScrollControlled: true,
-                      context: context,
-                      builder: (BuildContext context) {
-                        return OrderPlacedScreen();
-                      }
-                  );
+                  if (selectedOption == "payment_with_card") {
+                    Navigator.of(context).push(slideLeft(MPesaPayment(orderTotal: widget.orderTotal, totalItemsCost: widget.totalPrice,)));
+                  }
+                  else {
+                    Navigator.pop(context);
+                    showModalBottomSheet(
+                        isScrollControlled: true,
+                        context: context,
+                        builder: (BuildContext context) {
+                          return OrderPlacedScreen();
+                        }
+                    );
+                  }
+
                 },
                 padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
                 color: HexColor("#66906A"),
@@ -280,6 +291,63 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> init () async {
+    var pos = await getPosition();
+    lat = pos.latitude;
+    lng = pos.longitude;
+    user = await db_helper.getUser();
+    addressController.text = user.deliveryAddress;
+    if (user.deliveryAddress.toLowerCase().contains("Lucky Summer".toLowerCase())) {
+      delivery = 0;
+    }
+    setState(() {
+
+    });
+  }
+
+  @override
+  void initState () {
+    super.initState();
+    init();
+  }
+
+  Future<Position> getPosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Location services are not enabled don't continue
+      // accessing the position and request users of the
+      // App to enable the location services.
+      return Future.error('Location services are disabled.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        // Permissions are denied, next time you could try
+        // requesting permissions again (this is also where
+        // Android's shouldShowRequestPermissionRationale
+        // returned true. According to Android guidelines
+        // your App should show an explanatory UI now.
+        return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are denied forever, handle appropriately.
+      return Future.error(
+          'Location permissions are permanently denied, we cannot request permissions.');
+    }
+
+    // When we reach here, permissions are granted and we can
+    // continue accessing the position of the device.
+    return await Geolocator.getCurrentPosition();
   }
 
 }

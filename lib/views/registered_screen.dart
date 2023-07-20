@@ -1,7 +1,16 @@
+import 'dart:convert';
+
 import 'package:email_validator/email_validator.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:grocery_app/models/app_user.dart';
+import 'package:grocery_app/models/cart.dart';
+import 'package:grocery_app/models/order_detail.dart';
+import 'package:grocery_app/utils/constants.dart';
+import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/utils/methods.dart';
+import 'package:grocery_app/views/bottom_nav.dart';
 import 'package:grocery_app/views/otp_verification.dart';
 import 'package:grocery_app/views/select_location.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -29,6 +38,8 @@ class _RegisteredScreenState extends State<RegisteredScreen> {
   final form_key = GlobalKey<FormState>();
 
   bool is_loading = false;
+
+  var db_helper = DbHelper();
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +93,7 @@ class _RegisteredScreenState extends State<RegisteredScreen> {
                     textAlignVertical: TextAlignVertical.center,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
-                      hintText: "+234",
+                      hintText: "+254",
                       hintStyle: TextStyle(
                         color: HexColor("#1B1C1E66"),
                         fontFamily: 'inter-regular',
@@ -201,9 +212,43 @@ class _RegisteredScreenState extends State<RegisteredScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
                   child: MaterialButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (form_key.currentState.validate()) {
-                        Navigator.of(context).push(slideLeft(PhoneVerification(phoneNumber: phone_controller.text.trim(),)));
+                        setState(() {
+                          is_loading = true;
+                        });
+                        final snapshot = await FirebaseDatabase.instance.ref().child('data/users/${phone_controller.text.trim()}').get();
+                        Map<dynamic, dynamic> values = snapshot.value;
+                        if (values.isEmpty) {
+                          Navigator.of(context).push(slideLeft(PhoneVerification(email: email_controller.text.trim(), phoneNumber: phone_controller.text.trim(), address: address_controller.text,)));
+                        }
+                        else {
+                          AppUser u;
+                          u = AppUser(
+                              userID: values["userID"].toString(),
+                              dateJoined: int.parse(values["dateJoined"].toString()),
+                              email: values["email"].toString(),
+                              phoneNumber: values["phoneNumber"].toString(),
+                              deliveryAddress: values["deliveryAddress"].toString()
+                          );
+                          await db_helper.saveUser(u, true);
+                          final cart = await FirebaseDatabase.instance.ref().child('data/users/${phone_controller.text.trim()}/cart').get();
+                          if (cart != null) {
+                            List<Object> cartValues = cart.value;
+                            if (cartValues != null) {
+                              for (var i = 0; i < cartValues.length; i++) {
+                                if (cartValues[i] != null) {
+                                  final map = cartValues[i] as Map<dynamic, dynamic>;
+                                  await db_helper.saveCart(map["itemID"], map["buyingCount"], map["buyingWholesale"], phone_controller.text.trim());
+                                }
+                              }
+                            }
+                          }
+                          setState(() {
+                            is_loading = false;
+                          });
+                          Navigator.of(context).pushReplacement(slideLeft(const BottomNav()));
+                        }
                     }},
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
                     color: HexColor("#66906A"),
@@ -304,17 +349,17 @@ class _RegisteredScreenState extends State<RegisteredScreen> {
     setState(() {
       is_loading = true;
     });
-    var pos = await getPosition();
-    lat = pos.latitude;
-    lng = pos.longitude;
-    List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
-
-    var address = "${placemarks[0].street}, ${placemarks[0].subAdministrativeArea}, "
-        "${placemarks[0].locality}, ${placemarks[0].administrativeArea}, ${placemarks[0].country}, "
-        "${placemarks[0].postalCode}";
-
-    address_controller.text = address;
-    phone_controller.text = "+2347019240234";
+    // var pos = await getPosition();
+    // lat = pos.latitude;
+    // lng = pos.longitude;
+    // List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+    //
+    // var address = "${placemarks[0].street}, ${placemarks[0].subAdministrativeArea}, "
+    //     "${placemarks[0].locality}, ${placemarks[0].administrativeArea}, ${placemarks[0].country}, "
+    //     "${placemarks[0].postalCode}";
+    //
+    address_controller.text = "address";
+    phone_controller.text = "+2348164727987";
     email_controller.text = "sherifffoladejo@gmail.com";
     setState(() {
       is_loading = false;

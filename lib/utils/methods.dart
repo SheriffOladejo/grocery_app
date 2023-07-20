@@ -20,6 +20,14 @@ Route slideLeft(Widget next) {
   );
 }
 
+Widget loadingPage(){
+  return Center(
+    child: CircularProgressIndicator(
+
+    ),
+  );
+}
+
 Future showToast(String message){
   return Fluttertoast.showToast(
       msg: message,

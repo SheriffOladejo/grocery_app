@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/adapters/item_adapter.dart';
+import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/models/item.dart';
 import 'package:grocery_app/utils/constants.dart';
 import 'package:grocery_app/utils/db_helper.dart';
@@ -33,6 +34,7 @@ class _ItemDetailsState extends State<ItemDetails> {
   bool isLoading = false;
 
   var db_helper = DbHelper();
+  AppUser user;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +213,8 @@ class _ItemDetailsState extends State<ItemDetails> {
                           await db_helper.saveCart(
                             widget.item.id,
                             widget.selectedCount,
-                            widget.showWholesalePrice.toString()
+                            widget.showWholesalePrice.toString(),
+                            user.phoneNumber,
                           );
                           showToast("Cart saved");
                           Navigator.pop(context);
@@ -282,6 +285,7 @@ class _ItemDetailsState extends State<ItemDetails> {
       inStock = false;
       // delete item from db
     }
+    user = await db_helper.getUser();
     List<Item> cart = await db_helper.getCart();
     cartCount = cart.length;
     relatedProducts = await db_helper.getRelatedProducts(widget.item, widget.item.category);
