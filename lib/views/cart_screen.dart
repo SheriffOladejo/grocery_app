@@ -95,7 +95,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 Text(
-                  "\$${totalItemsPrice.toStringAsFixed(2)}",
+                  "${Constants.CURRENCY}${totalItemsPrice.toStringAsFixed(2)}",
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 10,
@@ -119,7 +119,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 Text(
-                  "\$${deliveryPrice.toStringAsFixed(2)}",
+                  "${Constants.CURRENCY}${deliveryPrice.toStringAsFixed(2)}",
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 10,
@@ -143,7 +143,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
                 Text(
-                  "\$${orderTotal.toStringAsFixed(2)}",
+                  "${Constants.CURRENCY}${orderTotal.toStringAsFixed(2)}",
                   style: TextStyle(
                     color: Colors.black,
                     fontSize: 12,

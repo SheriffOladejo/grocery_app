@@ -1,8 +1,11 @@
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/models/item.dart';
 import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
+import 'package:grocery_app/utils/methods.dart';
+import 'package:grocery_app/views/splash_screen.dart';
 
 class OrderPlacedScreen extends StatefulWidget {
 
@@ -50,7 +53,8 @@ class _OrderPlacedScreenState extends State<OrderPlacedScreen> {
                 padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
                 child: MaterialButton(
                   onPressed: () {
-
+                    int count = 0;
+                    Navigator.of(context).popUntil((_) => count++ >= 2);
                   },
                   padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
                   color: HexColor("#66906A"),

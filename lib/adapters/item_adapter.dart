@@ -9,10 +9,12 @@ class ItemAdapter extends StatefulWidget {
 
   Item item;
   bool showWholesalePrice = false;
+  Function callback;
 
   ItemAdapter({
     this.item,
     this.showWholesalePrice,
+    this.callback,
   });
 
   @override
@@ -30,12 +32,26 @@ class _ItemAdapterState extends State<ItemAdapter> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.item.stockCount > 5) {
+      stock = "In stock";
+      inStock = true;
+    }
+    else if (widget.item.stockCount <= 5) {
+      stock = "${widget.item.stockCount} left";
+      inStock = false;
+    }
+    else if (widget.item.stockCount == 0) {
+      stock = "Out of stock";
+      inStock = false;
+      // delete item from db
+    }
     return GestureDetector(
       onTap: () {
         Navigator.push(context, MaterialPageRoute(builder: (context) => ItemDetails(
           item: widget.item,
           showWholesalePrice: widget.showWholesalePrice,
-          selectedCount: selectedCount
+          selectedCount: selectedCount,
+          callback: widget.callback,
         )));
       },
       child: Card(
@@ -193,20 +209,6 @@ class _ItemAdapterState extends State<ItemAdapter> {
   }
 
   Future<void> init () async {
-    if (widget.item.stockCount > 5) {
-      stock = "In stock";
-      inStock = true;
-    }
-    else if (widget.item.stockCount <= 5) {
-      stock = "${widget.item.stockCount} left";
-      inStock = false;
-    }
-    else if (widget.item.stockCount == 0) {
-      stock = "Out of stock";
-      inStock = false;
-      // delete item from db
-    }
-
     if (widget.item.retailPrice != 0 && widget.item.wholesalePrice != 0) {
       double normalPrice = widget.item.retailPrice * widget.item.wholesaleUnit;
       totalDiscount = ((normalPrice - widget.item.wholesalePrice) / normalPrice);

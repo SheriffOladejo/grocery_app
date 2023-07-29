@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/models/item.dart';
@@ -8,6 +9,7 @@ import 'package:grocery_app/utils/constants.dart';
 import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/utils/methods.dart';
+import 'package:grocery_app/utils/mpesa_api.dart';
 import 'package:http/http.dart' as http;
 
 class MPesaPayment extends StatefulWidget {
@@ -34,7 +36,11 @@ class _MPesaPaymentState extends State<MPesaPayment> {
   bool is_loading = false;
 
   var phone_controller = TextEditingController();
-  var wallet_controller = TextEditingController();
+  // var wallet_controller = TextEditingController();
+
+  List<Item> cart = [];
+
+  final mpesaApi = MpesaAPI(consumerKey, consumerSecret, shortcode, passkey);
 
 
   @override
@@ -108,41 +114,6 @@ class _MPesaPaymentState extends State<MPesaPayment> {
                     ),
                   ),
                 ),
-                Container(height: 10,),
-                Container(
-                  height: 40,
-                  child: TextFormField(
-                    textAlign: TextAlign.start,
-                    textAlignVertical: TextAlignVertical.center,
-                    controller: wallet_controller,
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontFamily: 'inter-regular',
-                      fontSize: 14,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: "MPesa Wallet ID",
-                      hintStyle: TextStyle(
-                        color: HexColor("#1B1C1E66"),
-                        fontFamily: 'inter-regular',
-                        fontSize: 14,
-                      ),
-                      contentPadding: EdgeInsets.only(left: 15),
-                      label: Text(
-                        "MPesa Wallet ID",
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontFamily: 'inter-regular',
-                          fontSize: 14,
-                        ),
-                      ),
-                      enabledBorder: enabledBorder(),
-                      //disabledBorder: disabledBorder(),
-                      //errorBorder: errorBorder(),
-                      focusedBorder: focusedBorder(),
-                    ),
-                  ),
-                ),
                 Container(height: 15,),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
@@ -187,13 +158,11 @@ class _MPesaPaymentState extends State<MPesaPayment> {
     setState(() {
       is_loading = true;
     });
-    String wallet_id = wallet_controller.text.trim();
     String phone_number = phone_controller.text.trim();
 
     final params = {
-      "amount": widget.orderTotal.toString(),
+      "amount": widget.orderTotal.toStringAsFixed(2),
       "phone_number": phone_number,
-      "wallet_id": wallet_id,
     };
 
     var url = Uri.parse('https://payment.intasend.com/api/v1/payment/mpesa-stk-push/');
@@ -212,11 +181,11 @@ class _MPesaPaymentState extends State<MPesaPayment> {
       );
 
       if (response.statusCode == 200) {
+        print("mpesa response: ${response.body.toString()}");
         Map<String, dynamic> data = jsonDecode(response.body.toString());
         String orderID = data["id"];
         String invoiceID = data["invoice"]["invoice_id"];
         String status = data["invoice"]["state"];
-        print("response: " + response.body.toString());
         int timestamp = DateTime.now().millisecondsSinceEpoch;
         user = await db_helper.getUser();
         String ownerID = user.userID;
@@ -237,12 +206,13 @@ class _MPesaPaymentState extends State<MPesaPayment> {
           orderTotal: widget.orderTotal,
           ownerID: ownerID,
           paymentStatus: status,
+          deliveryStatus: "Pending",
           desc: "",
           selectedItems: items
         );
 
         await db_helper.saveOrder(order, false, false);
-        await checkStatus(invoiceID);
+        await checkStatus(invoiceID, orderID);
 
       } else {
         // Request failed
@@ -258,9 +228,25 @@ class _MPesaPaymentState extends State<MPesaPayment> {
 
   }
 
-  Future<void> checkStatus (String invoice_id) async {
+  Future<void> updateStockCount () async {
+    List<Item> cartList = await db_helper.getCart();
+
+    for (var i = 0; i < cartList.length; i++) {
+      int itemID = cartList[i].id;
+      Item item = await db_helper.getFirebaseItemByID(itemID);
+      int stockLeft = item.stockCount - cartList[i].buyingCount;
+      final params = {
+        "stockCount": stockLeft
+      };
+      DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/items/$itemID");
+      await ref.update(params);
+    }
+  }
+
+  Future<void> checkStatus (String invoice_id, String orderID) async {
     final params = {
       "invoice_id": invoice_id,
+      "public_key": "ISPubKey_live_849e32a1-7214-46b4-9b1b-cdce60c43142"
     };
 
     var url = Uri.parse('https://payment.intasend.com/api/v1/payment/status/');
@@ -268,7 +254,7 @@ class _MPesaPaymentState extends State<MPesaPayment> {
     var headers = {
       'content-type': 'application/json',
       'accept': 'application/json',
-      'Authorization': 'Bearer ISSecretKey_live_8ff0aabc-17a6-44d1-a2a5-339c5fc8947d',
+      'Authorization': 'Basic ZDhzdFI1WEFBNEtYWFdnQjluclhzN1ZZR2ZkamQ1dEQ6bnV5ZWZtYlNDWDZCZDJVeg==',
     };
 
     try {
@@ -279,23 +265,36 @@ class _MPesaPaymentState extends State<MPesaPayment> {
       );
 
       if (response.statusCode == 200) {
-        print("payment status response: ${response.body.toString()}");
         Map<String, dynamic> data = jsonDecode(response.body.toString());
         String invoiceID = data["invoice"]["invoice_id"];
         String status = data["invoice"]["state"];
-        if (status == 'SUCCESS') {
-          await db_helper.updateOrderStatus(invoiceID, status, "Confirmed");
+        await db_helper.updateOrderStatus(orderID, invoiceID, status, "Pending");
+        await updateStockCount();
+        for (var i = 0; i < cart.length; i++) {
+          await db_helper.deleteCart(cart[i].id, user.phoneNumber);
         }
-
-
+        int count = 0;
+        Navigator.of(context).popUntil((_) => count++ >= 1);
       } else {
-        // Request failed
         print('Error posting data: ${response.body.toString()}');
       }
     } catch (e) {
       print('Exception caught: $e');
     }
 
+  }
+
+  Future<void> init () async {
+    cart = await db_helper.getCart();
+    setState(() {
+
+    });
+  }
+
+  @override
+  void initState () {
+    super.initState();
+    init();
   }
 
 }

@@ -40,7 +40,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         actions: [
           GestureDetector(
             onTap: () async {
-              await init();
+              await getOrderUpdate();
             },
             child: Icon(Icons.refresh, color: Colors.black,),
           ),
@@ -65,13 +65,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     );
   }
 
-  Future<void> init () async {
-    orderList.clear();
+  Future<void> getOrderUpdate () async {
     setState(() {
       is_loading = true;
     });
+    orderList.clear();
+    await db_helper.clearOrderTable();
     final order = await FirebaseDatabase.instance.ref().child('data/orders').get();
-    user = await db_helper.getUser();
     if (order != null) {
       final orderValues = order.children;
       orderValues.forEach((element) async {
@@ -100,15 +100,61 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             invoice_id: invoiceID
         );
         if (ownerID == user.phoneNumber) {
-          orderList.add(order);
+          await db_helper.saveOrder(order, true, false);
+          print("OwnerID: $ownerID and user phone: ${user.phoneNumber}");
         }
       });
     }
+    await init();
     setState(() {
       is_loading = false;
     });
-    setState(() {
+  }
 
+  Future<void> init () async {
+    orderList.clear();
+    setState(() {
+      is_loading = true;
+    });
+    orderList = await db_helper.getOrders();
+    if (orderList.isEmpty) {
+      final order = await FirebaseDatabase.instance.ref().child('data/orders').get();
+      if (order != null) {
+        final orderValues = order.children;
+        orderValues.forEach((element) async {
+          String orderID = element.child("orderID").value;
+          int timestamp = int.parse(element.child("orderTimestamp").value.toString());
+          double deliveryPrice = double.parse(element.child("deliveryPrice").value.toString());
+          double totalItemsCost = double.parse(element.child("totalItemsCost").value.toString());
+          double orderTotal = double.parse(element.child("orderTotal").value.toString());
+          String ownerID = element.child("ownerID").value;
+          String paymentStatus = element.child("paymentStatus").value;
+          String desc = element.child("desc").value;
+          String selectedItems = element.child("selectedItems").value;
+          String invoiceID = element.child("invoiceID").value;
+          String deliveryStatus = element.child("deliveryStatus").value;
+          OrderDetail order = OrderDetail(
+              orderID: orderID,
+              orderTotal: orderTotal,
+              timestamp: timestamp,
+              deliveryStatus: deliveryStatus,
+              deliveryPrice: deliveryPrice,
+              totalItemsCost: totalItemsCost,
+              ownerID: ownerID,
+              paymentStatus: paymentStatus,
+              desc: desc,
+              selectedItems: selectedItems,
+              invoice_id: invoiceID
+          );
+          if (ownerID == user.phoneNumber) {
+            orderList.add(order);
+          }
+        });
+      }
+    }
+    user = await db_helper.getUser();
+    setState(() {
+      is_loading = false;
     });
   }
 

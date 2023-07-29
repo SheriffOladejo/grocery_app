@@ -1,7 +1,7 @@
 class Constants {
 
   // SET DELIVERY PRICE
-  static const double DELIVERY_PRICE = 30.0;
+  static const double DELIVERY_PRICE = 200.0;
 
   // SET CURRENCY
   static const String CURRENCY = "ksh";

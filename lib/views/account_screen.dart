@@ -1,17 +1,12 @@
 import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:grocery_app/models/app_user.dart';
 import 'package:grocery_app/utils/db_helper.dart';
-import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/utils/methods.dart';
-import 'package:grocery_app/views/add_item.dart';
 import 'package:grocery_app/views/order_history.dart';
 import 'package:grocery_app/views/stock_management_screen.dart';
-import 'package:passcode_screen/circle.dart';
-import 'package:passcode_screen/keyboard.dart';
-import 'package:passcode_screen/passcode_screen.dart';
+import 'package:flutter_screen_lock/flutter_screen_lock.dart';
 
 class AccountScreen extends StatefulWidget {
 
@@ -105,57 +100,21 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Future<void> init () async {
-    _showLockScreen(context);
     user = await db_helper.getUser();
     setState(() {
 
     });
+    Future.delayed(const Duration(seconds: 1)).then((val) {
+      _showLockScreen();
+    });
   }
 
-  _onPasscodeEntered(String enteredPasscode) {
-    bool isValid = '070192' == enteredPasscode;
-    _verificationNotifier.add(isValid);
-  }
-
-  _showLockScreen(
-      BuildContext context, {
-        bool opaque,
-        CircleUIConfig circleUIConfig,
-        KeyboardUIConfig keyboardUIConfig,
-        Widget cancelButton,
-        List<String> digits,
-      }) {
-    Navigator.push(
-        context,
-        PageRouteBuilder(
-          opaque: opaque,
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              PasscodeScreen(
-                title: Text(
-                  'Enter App Passcode',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 28),
-                ),
-                circleUIConfig: circleUIConfig,
-                keyboardUIConfig: keyboardUIConfig,
-                passwordEnteredCallback: _onPasscodeEntered,
-                cancelButton: cancelButton,
-                deleteButton: Text(
-                  'Delete',
-                  style: const TextStyle(fontSize: 16, color: Colors.white),
-                  semanticsLabel: 'Delete',
-                ),
-                shouldTriggerVerification: _verificationNotifier.stream,
-                backgroundColor: Colors.black.withOpacity(0.8),
-                cancelCallback: _onPasscodeCancelled,
-                digits: digits,
-                passwordDigits: 6,
-              ),
-        ));
-  }
-
-  _onPasscodeCancelled() {
-
+  _showLockScreen () {
+    screenLock(
+      context: context,
+      correctString: '2468',
+      canCancel: false,
+    );
   }
 
   @override

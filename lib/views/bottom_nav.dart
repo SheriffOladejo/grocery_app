@@ -22,7 +22,6 @@ class _BottomNavState extends State<BottomNav> {
     return [
       HomeScreen(),
       OrderDetailsScreen(),
-      AccountScreen(),
     ];
   }
 
@@ -98,20 +97,6 @@ class _BottomNavState extends State<BottomNav> {
           AssetImage("assets/images/box.png"),
         ),
         title: ("Orders"),
-        activeColorPrimary: HexColor("#66906A"),
-        inactiveColorPrimary: HexColor("#AAAAAA"),
-      ),
-      PersistentBottomNavBarItem(
-        textStyle: TextStyle(
-          fontSize: 16,
-          fontFamily: 'inter-medium',
-          fontWeight: FontWeight.w500,
-          color: Colors.black,
-        ),
-        icon: ImageIcon(
-          AssetImage("assets/images/profile.png"),
-        ),
-        title: ("Admin"),
         activeColorPrimary: HexColor("#66906A"),
         inactiveColorPrimary: HexColor("#AAAAAA"),
       ),

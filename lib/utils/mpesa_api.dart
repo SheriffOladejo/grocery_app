@@ -11,8 +11,9 @@ class MpesaAPI {
 
   Future<Map<String, dynamic>> checkTransactionStatus(String transactionId) async {
     String accessToken = await _generateAccessToken();
+    print(accessToken);
 
-    final url = Uri.parse('https://api.safaricom.co.ke/mpesa/transactionstatus/v1/query');
+    final url = Uri.parse('https://sandbox.safaricom.co.ke/mpesa/transactionstatus/v1/query');
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $accessToken',
@@ -21,32 +22,35 @@ class MpesaAPI {
       'BusinessShortCode': shortcode,
       'Password': _generatePassword(),
       'Timestamp': _generateTimestamp(),
-      'TransactionType': 'TransactionStatusQuery',
+      'CommandID': 'TransactionStatusQuery',
+      'SecurityCredential': 'pKIxFBePwfdgdQnJyPnLp+OeBcrDRyLIBg97S0bvYK/6vrOfVGdrwmrudR0WI7MTKshPPZ0gFyE+mrAnY+iAwaVe7Z7Y9IxNcR7Y1ma3tSyEqn7Lwy+Nyytr+caMyolmGKlOtP/vDWaNjxFlKLGNhC/r6bHcmHL3KJ4rCKzMMx85Iu30/PCPwUuogWtOSvqq7tZMR37EAa/VxtszmU+aGACSCUFHKo8rapwLqmhbfUXuJx8JdlP8gBhyFt+B7w0U+av1VimZScd6P5Gsr+8G0civJYJ5i7LYyOKBlkhsW/JHt3oNRfWXsUEaheTAue2mwVTGeZ36KekafC4jF/xWUA==',
       'TransactionID': transactionId,
       'PartyA': shortcode,
       'IdentifierType': '4',
-      'ResultURL': '',
-      'QueueTimeOutURL': '',
-      'Remarks': '',
-      'Occasion': '',
+      'ResultURL': 'https://mydomain.com/TransactionStatus/result/',
+      'QueueTimeOutURL': 'https://mydomain.com/TransactionStatus/queue/',
+      'Remarks': 'ok',
+      'Occasion': 'ok',
+      'Initiator': 'testapi'
     });
 
     final response = await http.post(url, headers: headers, body: body);
 
     if (response.statusCode == 200) {
+      print(response.body.toString());
       return json.decode(response.body);
     } else {
-      throw Exception('Failed to check transaction status: ${response.statusCode}');
+      throw Exception('Failed to check transaction status: ${response.body.toString()}');
     }
   }
 
   Future<String> _generateAccessToken() async {
-    final url = Uri.parse('https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials');
+    final url = Uri.parse('https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials');
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Basic ${base64Encode(utf8.encode('$consumerKey:$consumerSecret'))}',
     };
-
+    print('Basic ${base64Encode(utf8.encode('$consumerKey:$consumerSecret'))}');
     final response = await http.get(url, headers: headers);
 
     if (response.statusCode == 200) {
@@ -72,13 +76,13 @@ class MpesaAPI {
 }
 
 // Transaction details
-String transactionId = 'YOUR_TRANSACTION_ID';
+String transactionId = 'OEI2AK4Q16';
 
 // Set your M-Pesa API credentials
-String consumerKey = 'YOUR_CONSUMER_KEY';
-String consumerSecret = 'YOUR_CONSUMER_SECRET';
-String shortcode = 'YOUR_SHORTCODE';
-String passkey = 'YOUR_PASSKEY';
+String consumerKey = 'd8stR5XAA4KXXWgB9nrXs7VYGfdjd5tD';
+String consumerSecret = 'nuyefmbSCX6Bd2Uz';
+String shortcode = '600987';
+String passkey = 'Safaricom999!*!';
 
 void main() async {
   final mpesaApi = MpesaAPI(consumerKey, consumerSecret, shortcode, passkey);
@@ -93,3 +97,4 @@ void main() async {
     print('An error occurred: $e');
   }
 }
+

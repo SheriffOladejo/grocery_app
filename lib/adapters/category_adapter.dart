@@ -24,17 +24,18 @@ class _CategoryAdapterState extends State<CategoryAdapter> {
       child: Container(
         width: 55,
         alignment: Alignment.center,
+        margin: const EdgeInsets.fromLTRB(5, 0, 5, 0),
         child: Column(
           children: [
             Container(
-              width: 45,
-              height: 45,
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.all(Radius.circular(45)),
+                borderRadius: BorderRadius.all(Radius.circular(50)),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(35.0), // Adjust the radius value as per your requirement
-                child: widget.category.title == "all" ? Image.asset("assets/images/cat_all.png") : Image.network(
+                borderRadius: BorderRadius.circular(40.0), // Adjust the radius value as per your requirement
+                child: widget.category.title == "all" ? Image.asset("assets/images/cat_all.png", width: 70, height: 70, fit: BoxFit.cover,) : Image.network(
                   widget.category.image, // Replace with your image asset path
                   width: 70.0, // Adjust the width as per your requirement
                   height: 70.0, // Adjust the height as per your requirement
@@ -49,7 +50,7 @@ class _CategoryAdapterState extends State<CategoryAdapter> {
                 color: Colors.black,
                 fontFamily: 'inter-medium',
                 fontWeight: FontWeight.w500,
-                fontSize: 12,
+                fontSize: 10,
               ),
             ),
           ],

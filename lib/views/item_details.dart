@@ -14,8 +14,9 @@ class ItemDetails extends StatefulWidget {
   Item item;
   int selectedCount;
   bool showWholesalePrice;
+  Function callback;
 
-  ItemDetails({this.item, this.showWholesalePrice, this.selectedCount});
+  ItemDetails({this.callback, this.item, this.showWholesalePrice, this.selectedCount});
 
   @override
   State<ItemDetails> createState() => _ItemDetailsState();
@@ -45,7 +46,8 @@ class _ItemDetailsState extends State<ItemDetails> {
         backgroundColor: Colors.white,
         automaticallyImplyLeading: true,
         leading: GestureDetector(
-          onTap: () {
+          onTap: () async {
+            await widget.callback();
             Navigator.pop(context);
           },
           child: Icon(Icons.arrow_back, color: Colors.black,),
@@ -289,8 +291,31 @@ class _ItemDetailsState extends State<ItemDetails> {
     List<Item> cart = await db_helper.getCart();
     cartCount = cart.length;
     relatedProducts = await db_helper.getRelatedProducts(widget.item, widget.item.category);
+    await getDetails();
     setState(() {
       isLoading = false;
+    });
+  }
+
+  Future<void> getDetails() async {
+    Item i = await db_helper.getFirebaseItemByID(widget.item.id);
+    await db_helper.updateItem(i);
+    widget.item = i;
+    if (widget.item.stockCount > 5) {
+      stock = "In stock";
+      inStock = true;
+    }
+    else if (widget.item.stockCount <= 5) {
+      stock = "${widget.item.stockCount} left";
+      inStock = false;
+    }
+    else if (widget.item.stockCount == 0) {
+      stock = "Out of stock";
+      inStock = false;
+      // delete item from db
+    }
+    setState(() {
+
     });
   }
 

@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "218604743866",
+    "firebase_url": "https://grocery-app-cb9b5-default-rtdb.firebaseio.com",
     "project_id": "grocery-app-cb9b5",
     "storage_bucket": "grocery-app-cb9b5.appspot.com"
   },
@@ -13,6 +14,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "218604743866-echhur21pmi1lc2d0q3j5ptirlhssg5l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ojo.grocery_app",
+            "certificate_hash": "3f0628a1c6d2d71d58dbe4c2c670d2d1f15283f0"
+          }
+        },
         {
           "client_id": "218604743866-ainejaa4nbpotsa53hqdcsnn6gsqiv9u.apps.googleusercontent.com",
           "client_type": 3

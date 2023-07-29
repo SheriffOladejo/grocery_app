@@ -1,11 +1,15 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:grocery_app/models/app_user.dart';
+import 'package:grocery_app/models/item.dart';
+import 'package:grocery_app/models/order_detail.dart';
 import 'package:grocery_app/utils/constants.dart';
 import 'package:grocery_app/utils/db_helper.dart';
 import 'package:grocery_app/utils/hex_color.dart';
 import 'package:grocery_app/utils/methods.dart';
-import 'package:grocery_app/views/card_page.dart';
 import 'package:grocery_app/views/mpesa_payment.dart';
 import 'package:grocery_app/views/order_placed.dart';
 import 'package:grocery_app/views/select_location.dart';
@@ -249,11 +253,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
               child: MaterialButton(
-                onPressed: () {
+                onPressed: () async {
                   if (selectedOption == "payment_with_card") {
-                    Navigator.of(context).push(slideLeft(MPesaPayment(orderTotal: widget.orderTotal, totalItemsCost: widget.totalPrice,)));
+                    await Navigator.of(context).push(slideLeft(MPesaPayment(orderTotal: widget.orderTotal, totalItemsCost: widget.totalPrice,)));
+                    await sendNotification();
+                    Navigator.pop(context);
+                    showModalBottomSheet(
+                        isScrollControlled: true,
+                        context: context,
+                        builder: (BuildContext context) {
+                          return OrderPlacedScreen();
+                        }
+                    );
                   }
                   else {
+                    showToast("Please wait while we confirm your order");
+                    await confirmOrder();
+                    await sendNotification();
+                    await updateStockCount();
                     Navigator.pop(context);
                     showModalBottomSheet(
                         isScrollControlled: true,
@@ -293,10 +310,116 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  Future<void> updateStockCount () async {
+    List<Item> cartList = await db_helper.getCart();
+
+    for (var i = 0; i < cartList.length; i++) {
+      int itemID = cartList[i].id;
+      Item item = await db_helper.getFirebaseItemByID(itemID);
+      int stockLeft = item.stockCount - cartList[i].buyingCount;
+      final params = {
+        "stockCount": stockLeft
+      };
+      DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/items/$itemID");
+      await ref.update(params);
+    }
+  }
+
+  Future<void> confirmOrder () async {
+    String orderID = DateTime.now().millisecondsSinceEpoch.toString();
+    String invoiceID = DateTime.now().millisecondsSinceEpoch.toString();
+    String status = "Pay on delivery";
+    int timestamp = DateTime.now().millisecondsSinceEpoch;
+    user = await db_helper.getUser();
+    String ownerID = user.userID;
+    List<Item> cart = await db_helper.getCart();
+    String items = '';
+    var itemIDs = [];
+    for (var i = 0; i < cart.length; i++) {
+      itemIDs.add(cart[i].id);
+    }
+    items = itemIDs.toString();
+
+    var order = OrderDetail(
+        orderID: orderID,
+        timestamp: timestamp,
+        invoice_id: invoiceID,
+        deliveryPrice: Constants.DELIVERY_PRICE,
+        totalItemsCost: widget.orderTotal,
+        orderTotal: widget.orderTotal,
+        ownerID: ownerID,
+        paymentStatus: status,
+        deliveryStatus: "Pending",
+        desc: "",
+        selectedItems: items
+    );
+
+    await db_helper.saveOrder(order, false, false);
+  }
+
+  Future<void> sendNotificationToToken(String fcmToken) async {
+    // Replace YOUR_SERVER_KEY with your Firebase Server Key from Firebase Console
+    final String serverKey = "AAAAMuXbrLo:APA91bHCih8jQi9cVDPs6othxRLkB2kII3V9CbqzJeMYaqcNoE6tekWXPwRUd8V6RYmlD9K4UtX5qoyTJkAI80EeFA0AK2FUKjHC6loBJOAIVOsBGcpbIoSE4Uh4p0-eAMMM1xfmGgEU";
+
+    // Define the FCM API endpoint
+    final String fcmEndpoint = "https://fcm.googleapis.com/fcm/send";
+
+    // Define the notification payload
+    final Map<String, dynamic> notification = {
+      "title": "New order placed",
+      "body": "You have a new order from ${user.phoneNumber}, check app for more details",
+      "sound": "default",
+      "badge": "1",
+    };
+
+    // Define the data payload (optional, can be used to pass additional data)
+    final Map<String, dynamic> data = {
+      "key1": "value1",
+      "key2": "value2",
+    };
+
+    // Define the message payload
+    final Map<String, dynamic> message = {
+      "notification": notification,
+      "data": data,
+      "to": fcmToken,
+    };
+
+    // Encode the message to JSON
+    final String encodedMessage = jsonEncode(message);
+
+    try {
+      // Send the HTTP POST request to the FCM API endpoint
+      final http.Response response = await http.post(
+        Uri.parse(fcmEndpoint),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "key=$serverKey",
+        },
+        body: encodedMessage,
+      );
+
+      if (response.statusCode == 200) {
+        print("Notification sent successfully!");
+      } else {
+        print("Failed to send notification. Status code: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error sending notification: $e");
+    }
+  }
+
+  Future<void> sendNotification () async {
+    String token = "";
+    final snapshot = await FirebaseDatabase.instance.ref().child('data/token/').get();
+    final list = snapshot.children;
+    list.forEach((element) async {
+      token = element.child("token").value.toString();
+    });
+    await sendNotificationToToken(token);
+  }
+
   Future<void> init () async {
-    var pos = await getPosition();
-    lat = pos.latitude;
-    lng = pos.longitude;
     user = await db_helper.getUser();
     addressController.text = user.deliveryAddress;
     if (user.deliveryAddress.toLowerCase().contains("Lucky Summer".toLowerCase())) {

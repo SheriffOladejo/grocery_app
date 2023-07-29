@@ -170,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(height: 10,),
             Container(
               width: MediaQuery.of(context).size.width,
-              height: 80,
+              height: 100,
               child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: categoryList.length,
@@ -180,73 +180,73 @@ class _HomeScreenState extends State<HomeScreen> {
                   }),
             ),
             Container(height: 15,),
-            SizedBox(
-              width: MediaQuery.of(context).size.width,
-              child: Row(
-                  mainAxisSize: MainAxisSize.max,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    InkWell(
-                      onTap: () {
-                        if (!showRetail) {
-                          showRetail = true;
-                        }
-                        setState(() {
-
-                        });
-                      },
-                      child: Container(
-                        alignment: Alignment.center,
-                        padding: const EdgeInsets.all(10),
-                        width: (MediaQuery.of(context).size.width - 50) / 2,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.all(Radius.circular(8)),
-                          color: showRetail ? HexColor("#66906A") : HexColor("#1A66906A"),
-                        ),
-                        child: Text("Retail", style: TextStyle(
-                          color: showRetail ? Colors.white : HexColor("#66906A"),
-                          fontFamily: 'inter-medium',
-                          fontSize: 14,
-                        )),
-                      ),
-                    ),
-                    Container(width: 5,),
-                    InkWell(
-                      onTap: () {
-                        if (showRetail) {
-                          showRetail = false;
-                        }
-                        setState(() {
-
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        width: (MediaQuery.of(context).size.width - 50) / 2,
-                        alignment: Alignment.center,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.all(Radius.circular(8)),
-                          color: !showRetail ? HexColor("#66906A") : HexColor("#1A66906A"),
-                        ),
-                        child: Text("Wholesale", style: TextStyle(
-                          color: !showRetail ? Colors.white : HexColor("#66906A"),
-                          fontFamily: 'inter-medium',
-                          fontSize: 14,
-                        )),
-                      ),
-                    ),
-                  ]
-              ),
-            ),
-            Container(height: 15,),
+            // SizedBox(
+            //   width: MediaQuery.of(context).size.width,
+            //   child: Row(
+            //       mainAxisSize: MainAxisSize.max,
+            //       mainAxisAlignment: MainAxisAlignment.center,
+            //       children: [
+            //         InkWell(
+            //           onTap: () {
+            //             if (!showRetail) {
+            //               showRetail = true;
+            //             }
+            //             setState(() {
+            //
+            //             });
+            //           },
+            //           child: Container(
+            //             alignment: Alignment.center,
+            //             padding: const EdgeInsets.all(10),
+            //             width: (MediaQuery.of(context).size.width - 50) / 2,
+            //             height: 40,
+            //             decoration: BoxDecoration(
+            //               borderRadius: const BorderRadius.all(Radius.circular(8)),
+            //               color: showRetail ? HexColor("#66906A") : HexColor("#1A66906A"),
+            //             ),
+            //             child: Text("Retail", style: TextStyle(
+            //               color: showRetail ? Colors.white : HexColor("#66906A"),
+            //               fontFamily: 'inter-medium',
+            //               fontSize: 14,
+            //             )),
+            //           ),
+            //         ),
+            //         Container(width: 5,),
+            //         InkWell(
+            //           onTap: () {
+            //             if (showRetail) {
+            //               showRetail = false;
+            //             }
+            //             setState(() {
+            //
+            //             });
+            //           },
+            //           child: Container(
+            //             padding: const EdgeInsets.all(10),
+            //             width: (MediaQuery.of(context).size.width - 50) / 2,
+            //             alignment: Alignment.center,
+            //             height: 40,
+            //             decoration: BoxDecoration(
+            //               borderRadius: const BorderRadius.all(Radius.circular(8)),
+            //               color: !showRetail ? HexColor("#66906A") : HexColor("#1A66906A"),
+            //             ),
+            //             child: Text("Wholesale", style: TextStyle(
+            //               color: !showRetail ? Colors.white : HexColor("#66906A"),
+            //               fontFamily: 'inter-medium',
+            //               fontSize: 14,
+            //             )),
+            //           ),
+            //         ),
+            //       ]
+            //   ),
+            // ),
+            // Container(height: 15,),
             Container(
               height: MediaQuery.of(context).size.height - 410,
               width: MediaQuery.of(context).size.width,
               child: GridView.builder(
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisExtent: showRetail ? 230 : 240),
-                itemBuilder: (_, index) => ItemAdapter(item: searchList.isNotEmpty ? searchList[index] : showRetail ? retailList[index] : wholesaleList[index], showWholesalePrice: !showRetail,),
+                itemBuilder: (_, index) => ItemAdapter(callback: callback, item: searchList.isNotEmpty ? searchList[index] : showRetail ? retailList[index] : wholesaleList[index], showWholesalePrice: !showRetail,),
                 itemCount: searchList.isNotEmpty ? searchList.length : showRetail ? retailList.length : wholesaleList.length,
               ),
             )
@@ -254,6 +254,13 @@ class _HomeScreenState extends State<HomeScreen> {
         )
       ),
     );
+  }
+
+  Future<void> callback () async {
+    retailList = await db_helper.getRetailItems();
+    setState(() {
+
+    });
   }
 
   Future<void> categoryCallback (String category) async {
@@ -271,7 +278,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> init () async {
-    categoryList = await db_helper.getCategories();
+    setState(() {
+      isLoading = true;
+    });
+    await getCategories();
     itemList = await db_helper.getItems();
     if (itemList.isEmpty) {
       await getItems();
@@ -288,6 +298,27 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> getCategories () async {
+    categoryList = await db_helper.getCategories();
+    int last_id = 0;
+    if (categoryList.isNotEmpty) {
+      last_id = categoryList[categoryList.length - 1].id;
+    }
+    final snapshot = await FirebaseDatabase.instance.ref().child('data/categories/').get();
+    final list = snapshot.children;
+    list.forEach((element) async {
+      var i = Category(
+        id: int.parse(element.child("id").value.toString()),
+        image: element.child("image").value,
+        title: element.child("title").value,
+      );
+      if (i.id > last_id) {
+        await db_helper.saveCategory(i);
+      }
+    });
+    categoryList = await db_helper.getCategories();
+  }
+
   Future<void> getCartCount () async {
     List<Item> cart = await db_helper.getCart();
     cartCount = cart.length;
@@ -297,50 +328,29 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> getCategories () async {
-    setState(() {
-      isLoading = true;
-    });
-    final snapshot = await FirebaseDatabase.instance.ref().child('data/categories/').get();
-    final list = snapshot.children;
-    list.forEach((element) async {
-      var c = Category(
-        id: int.parse(element.child("id").value.toString()),
-        title: element.child("title").value,
-        image: element.child("image").value,
-      );
-      await db_helper.saveCategory(c);
-    });
-    categoryList = await db_helper.getCategories();
-    setState(() {
-      isLoading = false;
-    });
-  }
+  // Future<void> getCategories () async {
+  //   setState(() {
+  //     isLoading = true;
+  //   });
+  //   final snapshot = await FirebaseDatabase.instance.ref().child('data/categories/').get();
+  //   final list = snapshot.children;
+  //   list.forEach((element) async {
+  //     var c = Category(
+  //       id: int.parse(element.child("id").value.toString()),
+  //       title: element.child("title").value,
+  //       image: element.child("image").value,
+  //     );
+  //     await db_helper.saveCategory(c);
+  //   });
+  //   categoryList = await db_helper.getCategories();
+  //   setState(() {
+  //     isLoading = false;
+  //   });
+  // }
 
   Future<void> getItems () async {
     setState(() {
       isLoading = true;
-    });
-    final snapshot = await FirebaseDatabase.instance.ref().child('data/items/').get();
-    final list = snapshot.children;
-    list.forEach((element) async {
-      var i = Item(
-        id: int.parse(element.child("id").value.toString()),
-        stockCount: element.child("stockCount").value,
-        itemName: element.child("itemName").value,
-        description: element.child("description").value,
-        category: element.child("category").value,
-        image: element.child("image").value,
-        isBuyingWholesale: element.child("isBuyingWholesale").value,
-        wholesaleImage: element.child("image").value,
-        favorite: element.child("favorite").value,
-        wholesalePrice: double.parse(element.child("wholesalePrice").value.toString()),
-        wholesaleUnit: element.child("wholesaleUnit").value,
-        buyingCount: element.child("buyingCount").value,
-        retailPrice: double.parse(element.child("retailPrice").value.toString()),
-        discount: double.parse(element.child("discount").value.toString()),
-      );
-      await db_helper.saveItem(i);
     });
     itemList = await db_helper.getItems();
     setState(() {

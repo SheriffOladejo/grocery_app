@@ -219,7 +219,7 @@ class _RegisteredScreenState extends State<RegisteredScreen> {
                         });
                         final snapshot = await FirebaseDatabase.instance.ref().child('data/users/${phone_controller.text.trim()}').get();
                         Map<dynamic, dynamic> values = snapshot.value;
-                        if (values.isEmpty) {
+                        if (values == null) {
                           Navigator.of(context).push(slideLeft(PhoneVerification(email: email_controller.text.trim(), phoneNumber: phone_controller.text.trim(), address: address_controller.text,)));
                         }
                         else {
@@ -349,18 +349,18 @@ class _RegisteredScreenState extends State<RegisteredScreen> {
     setState(() {
       is_loading = true;
     });
-    // var pos = await getPosition();
-    // lat = pos.latitude;
-    // lng = pos.longitude;
-    // List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
-    //
-    // var address = "${placemarks[0].street}, ${placemarks[0].subAdministrativeArea}, "
-    //     "${placemarks[0].locality}, ${placemarks[0].administrativeArea}, ${placemarks[0].country}, "
-    //     "${placemarks[0].postalCode}";
-    //
-    address_controller.text = "address";
-    phone_controller.text = "+2348164727987";
-    email_controller.text = "sherifffoladejo@gmail.com";
+    var pos = await getPosition();
+    lat = pos.latitude;
+    lng = pos.longitude;
+    List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+
+    var address = "${placemarks[0].street}, ${placemarks[0].subAdministrativeArea}, "
+        "${placemarks[0].locality}, ${placemarks[0].administrativeArea}, ${placemarks[0].country}, "
+        "${placemarks[0].postalCode}";
+
+    address_controller.text = address;
+    phone_controller.text = "";
+    email_controller.text = "";
     setState(() {
       is_loading = false;
     });

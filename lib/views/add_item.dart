@@ -572,7 +572,7 @@ class _AddItemState extends State<AddItem> {
         price_controller.text = "";
         isWholeSale = false;
         showToast("Item updated");
-
+        Navigator.pop(context);
       }
       else {
         String category = category_controller.text.toString();
@@ -641,6 +641,7 @@ class _AddItemState extends State<AddItem> {
         price_controller.text = "";
         isWholeSale = false;
         showToast("Item uploaded");
+        Navigator.pop(context);
       }
 
       setState(() {

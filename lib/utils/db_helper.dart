@@ -151,10 +151,27 @@ class DbHelper {
     }
   }
 
-  Future<void> updateOrderStatus (String invoiceID, String status, String deliveryStatus) async {
+  Future<void> updateOrderStatus (String orderID, String invoiceID, String status, String deliveryStatus) async {
     Database db = await database;
     String query = "update $order_table set $col_order_payment_status = '$status',"
         "$col_order_delivery_status = '$deliveryStatus' where $col_invoice_id = '$invoiceID'";
+    await db.execute(query);
+    final params = {
+      "orderID": orderID,
+      "paymentStatus": status,
+      "invoiceID": invoiceID,
+      "deliveryStatus": deliveryStatus
+    };
+    AppUser user = await getUser();
+    DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/${user.phoneNumber}/orders/${orderID}");
+    DatabaseReference ref2 = FirebaseDatabase.instance.ref().child("data/orders/${orderID}");
+    await ref.update(params);
+    await ref2.update(params);
+  }
+
+  Future<void> clearOrderTable () async {
+    Database db = await database;
+    String query = "delete from $order_table";
     await db.execute(query);
   }
 
@@ -211,7 +228,7 @@ class DbHelper {
       "buyingCount": buyingCount,
     };
     DatabaseReference ref = FirebaseDatabase.instance.ref().child("data/users/$phoneNumber/cart/$itemID");
-    await ref.set(params);
+    await ref.update(params);
   }
 
   Future<void> saveCart (int itemID, int buyingCount, String buyingWholesale, String phoneNumber) async {
@@ -354,9 +371,9 @@ class DbHelper {
 
   Future<void> saveItem (Item item) async {
     Database db = await database;
-    String query = "insert into $item_table ($col_item_name, $col_item_desc, $col_item_category, "
+    String query = "insert into $item_table ($col_item_id, $col_item_name, $col_item_desc, $col_item_category, "
         "$col_item_image, $col_item_wholesale_image, $col_item_stock_count, $col_item_wholesale_price, $col_wholesale_unit, "
-        "$col_retail_price) values ('${item.itemName}', '${item.description}', '${item.category}', "
+        "$col_retail_price) values ('${item.id}', '${item.itemName}', '${item.description}', '${item.category}', "
         "'${item.image}', '${item.wholesaleImage}', '${item.stockCount}', '${item.wholesalePrice}', '${item.wholesaleUnit}', "
         "'${item.retailPrice}')";
     try {
@@ -373,8 +390,9 @@ class DbHelper {
     String query = "update $item_table set $col_item_name = '${item.itemName}', $col_item_desc = '${item.description}', "
         "$col_item_category = '${item.category}', $col_item_image = '${item.image}', $col_item_wholesale_image = '${item.wholesaleImage}', "
         "$col_item_stock_count = '${item.stockCount}', $col_item_wholesale_price = '${item.wholesalePrice}', $col_wholesale_unit = '${item.wholesaleUnit}', "
-        "$col_retail_price = '${item.retailPrice}' where $col_item_id = '${item.id}'";
+        "$col_retail_price = '${item.retailPrice}' where $col_item_id = ${item.id}";
     try {
+      print("update item query: $query");
       await db.execute(query);
     }
     catch(e) {
@@ -573,6 +591,34 @@ class DbHelper {
       }
     }
     return list;
+  }
+
+  Future<Item> getFirebaseItemByID (int id) async {
+    Item item;
+    final snapshot = await FirebaseDatabase.instance.ref().child('data/items/').get();
+    final list = snapshot.children;
+    list.forEach((element) async {
+      var i = Item(
+        id: int.parse(element.child("id").value.toString()),
+        stockCount: element.child("stockCount").value,
+        itemName: element.child("itemName").value,
+        description: element.child("description").value,
+        category: element.child("category").value,
+        image: element.child("image").value,
+        isBuyingWholesale: element.child("isBuyingWholesale").value,
+        wholesaleImage: element.child("image").value,
+        favorite: element.child("favorite").value,
+        wholesalePrice: double.parse(element.child("wholesalePrice").value.toString()),
+        wholesaleUnit: element.child("wholesaleUnit").value,
+        buyingCount: element.child("buyingCount").value,
+        retailPrice: double.parse(element.child("retailPrice").value.toString()),
+        discount: double.parse(element.child("discount").value.toString()),
+      );
+      if (i.id == id) {
+        item = i;
+      }
+    });
+    return item;
   }
 
   Future<Item> getItemByID (int id) async {
